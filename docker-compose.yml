@@ -1,0 +1,91 @@
+version: "3.9"
+
+# ============================================================
+# TEAM BRAIN — Neo4j Knowledge Graph (local / dev)
+# ============================================================
+# Uso:
+#   docker compose up -d          → levantar
+#   docker compose down           → detener (datos persisten)
+#   docker compose down -v        → detener Y borrar datos
+#   docker compose logs -f        → ver logs en vivo
+# ============================================================
+
+services:
+  neo4j:
+    image: neo4j:5.18-community
+    container_name: team-brain-neo4j
+    restart: unless-stopped
+
+    ports:
+      - "7474:7474"   # Neo4j Browser (UI web)
+      - "7687:7687"   # Bolt protocol → MCP se conecta aquí
+
+    environment:
+      # --- Auth ---
+      # Formato: usuario/password
+      # Cambia la password antes de levantar por primera vez
+      NEO4J_AUTH: neo4j/team-brain-2025
+
+      # --- Plugins ---
+      NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_dbms_security_procedures_unrestricted: "apoc.*"
+      NEO4J_dbms_security_procedures_allowlist: "apoc.*"
+
+      # --- Memoria JVM ---
+      NEO4J_server_memory_heap_initial__size: "512m"
+      NEO4J_server_memory_heap_max__size: "1G"
+      NEO4J_server_memory_pagecache_size: "512m"
+
+      # --- Network ---
+      # Acepta conexiones desde cualquier IP local (seguro en red local)
+      NEO4J_dbms_connector_bolt_listen__address: "0.0.0.0:7687"
+      NEO4J_dbms_connector_http_listen__address: "0.0.0.0:7474"
+
+      # --- Logs ---
+      NEO4J_dbms_logs_query_enabled: "INFO"
+      NEO4J_dbms_logs_query_threshold: "0"
+
+    volumes:
+      # Todos los volúmenes son named volumes → persisten entre reinicios
+      # Los datos no se pierden al hacer "docker compose down"
+      - neo4j_data:/data           # bases de datos (¡el más importante!)
+      - neo4j_logs:/logs           # logs de Neo4j
+      - neo4j_plugins:/plugins     # plugins instalados (APOC, etc.)
+      - neo4j_import:/import       # directorio para importar CSVs
+
+    healthcheck:
+      test: ["CMD", "neo4j", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+    # Limitar recursos en local para no saturar la máquina
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
+
+# ============================================================
+# VOLÚMENES PERSISTENTES
+# ============================================================
+# Docker gestiona estos volúmenes en:
+#   Linux/Mac:  /var/lib/docker/volumes/team-brain_neo4j_data/
+#   Windows:    \\wsl$\docker-desktop-data\...
+#
+# Para hacer backup manual:
+#   docker run --rm -v team-brain_neo4j_data:/data \
+#     -v $(pwd):/backup alpine \
+#     tar czf /backup/neo4j-backup.tar.gz /data
+# ============================================================
+volumes:
+  neo4j_data:
+    name: team-brain_neo4j_data
+  neo4j_logs:
+    name: team-brain_neo4j_logs
+  neo4j_plugins:
+    name: team-brain_neo4j_plugins
+  neo4j_import:
+    name: team-brain_neo4j_import
