@@ -2,3 +2,4 @@ data/
 logs/
 *.log
 .claude/settings.local.json
+vault/

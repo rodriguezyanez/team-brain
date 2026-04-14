@@ -8,7 +8,8 @@ REM   brain.bat restart  -> reiniciar Neo4j
 REM   brain.bat status   -> ver estado del contenedor
 REM   brain.bat logs     -> ver logs en vivo
 REM   brain.bat browser  -> abrir Neo4j Browser en Chrome
-REM   brain.bat mcp      -> registrar MCP en Claude Code
+REM   brain.bat mcp      -> registrar MCP team-brain y Context7 en Claude Code
+REM   brain.bat update   -> sincronizacion incremental de Neo4j (preserva memoria)
 REM =============================================================
 
 setlocal
@@ -23,6 +24,7 @@ if /i "%ACTION%"=="status"  goto DO_STATUS
 if /i "%ACTION%"=="logs"    goto DO_LOGS
 if /i "%ACTION%"=="browser" goto DO_BROWSER
 if /i "%ACTION%"=="mcp"     goto DO_MCP
+if /i "%ACTION%"=="update"  goto DO_UPDATE
 goto SHOW_HELP
 
 :DO_UP
@@ -72,22 +74,39 @@ goto END
 
 :DO_MCP
 echo.
-echo Registrando MCP team-brain en Claude Code...
+echo Registrando MCPs en Claude Code...
 echo.
 echo IMPORTANTE: Reemplaza team-brain-2025 por tu password si la cambiaste.
 echo.
 
-claude mcp add-json "team-brain" "{\"command\":\"npx\",\"args\":[\"-y\",\"@knowall-ai/mcp-neo4j-agent-memory\"],\"env\":{\"NEO4J_URI\":\"bolt://localhost:7687\",\"NEO4J_USERNAME\":\"neo4j\",\"NEO4J_PASSWORD\":\"team-brain-2025\",\"NEO4J_DATABASE\":\"neo4j\"}}"
+echo Registrando team-brain...
+claude mcp add-json "team-brain" "{\"command\":\"npx\",\"args\":[\"-y\",\"@knowall-ai/mcp-neo4j-agent-memory\"],\"env\":{\"NEO4J_URI\":\"bolt://localhost:7687\",\"NEO4J_USERNAME\":\"neo4j\",\"NEO4J_PASSWORD\":\"team-brain-2025\",\"NEO4J_DATABASE\":\"neo4j\"}}" --scope user
+
+echo.
+echo Registrando Context7 (documentacion en tiempo real)...
+claude mcp add-json "context7" "{\"command\":\"npx\",\"args\":[\"-y\",\"@upstash/context7-mcp\"]}" --scope user
 
 if %ERRORLEVEL% equ 0 (
     echo.
-    echo [OK] MCP registrado. Verificando...
+    echo [OK] MCPs registrados. Verificando...
     claude mcp list
 ) else (
     echo.
-    echo [ERROR] Fallo el registro del MCP.
+    echo [ERROR] Fallo el registro de algun MCP.
     echo         Asegurate de tener Claude Code instalado:
     echo         npm install -g @anthropic-ai/claude-code
+)
+goto END
+
+:DO_UPDATE
+echo.
+echo Sincronizando arquitectura de referencia en Neo4j...
+echo (Preserva decisiones, bugs, patterns y memoria del equipo)
+echo.
+if exist brain-update.bat (
+    call brain-update.bat
+) else (
+    echo [ERROR] brain-update.bat no encontrado en el directorio actual.
 )
 goto END
 
@@ -101,7 +120,8 @@ echo   brain.bat restart  Reiniciar Neo4j
 echo   brain.bat status   Ver estado del contenedor
 echo   brain.bat logs     Ver logs en vivo
 echo   brain.bat browser  Abrir Neo4j Browser
-echo   brain.bat mcp      Registrar MCP en Claude Code
+echo   brain.bat mcp      Registrar MCPs ^(team-brain + Context7^) en Claude Code
+echo   brain.bat update   Sincronizar arquitectura en Neo4j ^(preserva memoria^)
 echo.
 
 :END

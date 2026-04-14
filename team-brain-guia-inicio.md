@@ -52,6 +52,43 @@ team-brain/
 
 ---
 
+## Instalador unificado (recomendado — todos los SO)
+
+Hacé todo el setup en **un solo comando**:
+
+**Windows (CMD)**
+```bat
+cd team-brain
+setup.bat
+```
+
+**Windows (PowerShell)**
+```powershell
+cd team-brain
+.\setup.ps1
+```
+
+**Linux / macOS**
+```bash
+cd team-brain
+chmod +x setup.sh && ./setup.sh
+```
+
+El instalador hace automáticamente:
+1. Verifica prerequisitos (Docker, Node.js, Claude Code, curl)
+2. Detecta la password desde `docker-compose.yml`
+3. Levanta Neo4j con `docker compose up -d`
+4. Espera que Neo4j esté listo e inicializa la base de datos
+5. Carga la arquitectura de referencia KLAP BYSF
+6. Registra el MCP `team-brain` en Claude Code con `--scope user`
+7. Copia `CLAUDE.md` a `~/.claude/CLAUDE.md` (Linux/macOS) o `%USERPROFILE%\.claude\CLAUDE.md` (Windows)
+
+Al finalizar muestra un resumen con el estado de cada paso.
+
+> Si preferís hacerlo paso a paso, seguí la guía manual a continuación.
+
+---
+
 ## Setup del servidor (una vez, en la máquina compartida)
 
 ### 1. Cambiar la password

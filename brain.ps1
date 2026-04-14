@@ -8,7 +8,8 @@
 #   .\brain.ps1 status   -> ver estado del contenedor
 #   .\brain.ps1 logs     -> ver logs en vivo
 #   .\brain.ps1 browser  -> abrir Neo4j Browser
-#   .\brain.ps1 mcp      -> registrar MCP en Claude Code
+#   .\brain.ps1 mcp      -> registrar MCPs (team-brain + Context7) en Claude Code
+#   .\brain.ps1 update   -> sincronizacion incremental de Neo4j (preserva memoria)
 #
 # Si PowerShell bloquea la ejecucion, corre primero:
 #   Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
@@ -16,9 +17,8 @@
 
 param(
     [Parameter(Position=0)]
-    [ValidateSet("up","down","restart","status","logs","browser","mcp","")]
+    [ValidateSet("up","down","restart","status","logs","browser","mcp","update","")]
     [string]$Action = ""
-)
 
 if ($Action -eq "") {
     Write-Host ""
@@ -30,7 +30,8 @@ if ($Action -eq "") {
     Write-Host "  .\brain.ps1 status   Ver estado del contenedor"
     Write-Host "  .\brain.ps1 logs     Ver logs en vivo"
     Write-Host "  .\brain.ps1 browser  Abrir Neo4j Browser"
-    Write-Host "  .\brain.ps1 mcp      Registrar MCP en Claude Code"
+    Write-Host "  .\brain.ps1 mcp      Registrar MCPs (team-brain + Context7) en Claude Code"
+    Write-Host "  .\brain.ps1 update   Sincronizar arquitectura en Neo4j (preserva memoria)"
     Write-Host ""
     exit 0
 }
@@ -84,24 +85,43 @@ switch ($Action) {
 
     "mcp" {
         Write-Host ""
-        Write-Host "Registrando MCP team-brain en Claude Code..."
+        Write-Host "Registrando MCPs en Claude Code..." -ForegroundColor Cyan
         Write-Host ""
         Write-Host "IMPORTANTE: Reemplaza la password si la cambiaste en docker-compose.yml" -ForegroundColor Yellow
         Write-Host ""
 
+        Write-Host "Registrando team-brain..."
         $mcpConfig = '{"command":"npx","args":["-y","@knowall-ai/mcp-neo4j-agent-memory"],"env":{"NEO4J_URI":"bolt://localhost:7687","NEO4J_USERNAME":"neo4j","NEO4J_PASSWORD":"team-brain-2025","NEO4J_DATABASE":"neo4j"}}'
+        claude mcp add-json "team-brain" $mcpConfig --scope user
 
-        claude mcp add-json "team-brain" $mcpConfig
+        Write-Host ""
+        Write-Host "Registrando Context7 (documentacion en tiempo real)..."
+        $context7Config = '{"command":"npx","args":["-y","@upstash/context7-mcp"]}'
+        claude mcp add-json "context7" $context7Config --scope user
 
         if ($LASTEXITCODE -eq 0) {
             Write-Host ""
-            Write-Host "[OK] MCP registrado. Verificando..." -ForegroundColor Green
+            Write-Host "[OK] MCPs registrados. Verificando..." -ForegroundColor Green
             claude mcp list
         } else {
             Write-Host ""
-            Write-Host "[ERROR] Fallo el registro del MCP." -ForegroundColor Red
+            Write-Host "[ERROR] Fallo el registro de algun MCP." -ForegroundColor Red
             Write-Host "        Asegurate de tener Claude Code instalado:"
             Write-Host "        npm install -g @anthropic-ai/claude-code"
+        }
+    }
+
+    "update" {
+        Write-Host ""
+        Write-Host "Sincronizando arquitectura de referencia en Neo4j..." -ForegroundColor Cyan
+        Write-Host "(Preserva decisiones, bugs, patterns y memoria del equipo)" -ForegroundColor Gray
+        Write-Host ""
+        if (Test-Path "brain-update.ps1") {
+            & .\brain-update.ps1
+        } elseif (Test-Path "brain-update.bat") {
+            cmd /c brain-update.bat
+        } else {
+            Write-Host "[ERROR] brain-update.ps1 no encontrado en el directorio actual." -ForegroundColor Red
         }
     }
 }

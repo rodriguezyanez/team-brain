@@ -43,10 +43,12 @@ team-brain/
 ├── ONBOARDING.md            Guía del sistema de niveles para compartir con el equipo
 │
 │── Linux / macOS ───────────────────────────────────────────────
+├── setup.sh                 Instalador unificado: setup completo en un comando
 ├── init-brain.sh            Inicialización de Neo4j (ejecutar UNA vez)
 ├── backup.sh                Backup y restore de volúmenes
 │
 │── Windows ─────────────────────────────────────────────────────
+├── setup.bat / setup.ps1    Instalador unificado: setup completo en un comando
 ├── brain.bat / brain.ps1    Comandos rápidos: up, down, status, logs, browser, mcp
 ├── init-brain.bat           Inicialización de Neo4j (ejecutar UNA vez)
 ├── init-brain.ps1           Versión PowerShell
@@ -160,10 +162,13 @@ brain.bat browser        :: abrir http://localhost:7474
 
 :: Setup (ya ejecutados)
 init-brain.bat           :: inicialización base (NO volver a ejecutar)
-brain.bat mcp            :: registrar MCP en Claude Code
+brain.bat mcp            :: registrar team-brain + Context7 en Claude Code
+
+:: Actualización incremental (cuando cambia la arquitectura de referencia)
+brain.bat update         :: sincronizar nodos Standard en Neo4j (preserva memoria)
 
 :: Setup (pendiente)
-enrich-brain.bat         :: cargar arquitectura KLAP BYSF
+enrich-brain.bat         :: carga completa arquitectura KLAP BYSF (primera vez)
 
 :: Backup
 backup.bat               :: crear backup
@@ -174,6 +179,22 @@ backup.bat restore <f>   :: restaurar
 MATCH (n:Entity) RETURN n
 MATCH (n:Entity) RETURN n.entityType as tipo, count(n) as total ORDER BY total DESC
 MATCH (n)-[r]->(m) RETURN n.name, type(r), m.name LIMIT 50
+```
+
+## Flujo de actualización de arquitectura
+
+Cuando el equipo actualiza `ARQUITECTURA_REFERENCIA.md`:
+
+```bat
+:: 1. Asegurar Neo4j corriendo
+brain.bat up
+
+:: 2. Sincronizar sin borrar memoria acumulada
+brain.bat update
+:: (o directamente: brain-update.bat)
+
+:: ¿Qué preserva? → Decision, Fix, Pattern, Convention, Developer, Service, Bug
+:: ¿Qué actualiza? → Standard, Stack, Architecture, Kafka, Templates, DO/DONT
 ```
 
 ---

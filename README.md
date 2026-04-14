@@ -35,16 +35,20 @@ team-brain/
 │                                         %USERPROFILE%\.claude\CLAUDE.md  (Windows)
 │
 │── Windows ──────────────────────────────────────────────────────────────────
+├── setup.bat / setup.ps1    Instalador unificado — setup completo en un comando
 ├── brain.bat / brain.ps1    Operaciones diarias: up, down, restart, status,
-│                            logs, browser, mcp
+│                            logs, browser, mcp, update
+├── brain-update.bat/.ps1    Sincronización incremental de Neo4j (preserva memoria)
 ├── init-brain.bat           Inicialización de Neo4j — ejecutar UNA vez
 ├── init-brain.ps1           Versión PowerShell — detecta Community vs Enterprise
 ├── enrich-brain.bat         Carga arquitectura de referencia KLAP BYSF
 ├── backup.bat / backup.ps1  Backup y restore de volúmenes
 │
 │── Linux / macOS ────────────────────────────────────────────────────────────
+├── setup.sh                 Instalador unificado — setup completo en un comando
 ├── init-brain.sh            Inicialización — detecta Community vs Enterprise
 ├── enrich-brain.sh          Carga arquitectura de referencia KLAP BYSF
+├── brain-update.sh          Sincronización incremental de Neo4j (preserva memoria)
 ├── backup.sh                Backup y restore de volúmenes
 │
 │── Documentación ────────────────────────────────────────────────────────────
@@ -58,9 +62,30 @@ team-brain/
 
 ## Setup inicial
 
+### En un solo comando (recomendado)
+
+**Windows (CMD)**
+```bat
+setup.bat
+```
+
+**Windows (PowerShell)**
+```powershell
+.\setup.ps1
+```
+
+**Linux / macOS**
+```bash
+chmod +x setup.sh && ./setup.sh
+```
+
+El instalador orquesta todo automáticamente: verifica prerequisitos, levanta Neo4j,
+inicializa la base de datos, carga la arquitectura KLAP BYSF, registra el MCP
+y copia el CLAUDE.md al perfil del usuario.
+
 Ver [`GUIA-PRACTICA.md`](GUIA-PRACTICA.md) para el wizard completo.
 
-Resumen de comandos:
+### Paso a paso (manual / Linux / macOS)
 
 | Paso | Windows CMD | Windows PowerShell | Linux / macOS |
 |------|-------------|-------------------|---------------|
