@@ -3,3 +3,13 @@ logs/
 *.log
 .claude/settings.local.json
 vault/
+Convenciones
+DB
+Dependencias
+Estructura
+Kafka
+Principios
+Stack
+Templates
+Topics
+

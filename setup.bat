@@ -40,7 +40,7 @@ echo.
 REM =============================================================
 REM PASO 1: Verificar prerequisitos
 REM =============================================================
-echo ── PASO 1: Verificando prerequisitos ─────────────────────
+echo -- PASO 1: Verificando prerequisitos -----------------------
 echo.
 
 set ERRORS=0
@@ -94,20 +94,20 @@ if %ERRORLEVEL% neq 0 (
 )
 
 REM -- Claude Code --
-where claude >nul 2>&1
-if %ERRORLEVEL% neq 0 (
-    echo   [WARN]  Claude Code (claude CLI) no encontrado.
-    echo          El MCP no se podra registrar automaticamente.
-    echo          Instala con: npm install -g @anthropic-ai/claude-code
-    set CLAUDE_AVAILABLE=0
-) else (
+set CLAUDE_AVAILABLE=0
+powershell -NoProfile -Command "if (Get-Command claude -ErrorAction SilentlyContinue) { exit 0 } else { exit 1 }" >nul 2>&1
+if !ERRORLEVEL! equ 0 (
     echo   [OK]    Claude Code instalado
     set CLAUDE_AVAILABLE=1
+) else (
+    echo   [WARN]  Claude Code ^(claude CLI^) no encontrado.
+    echo          El MCP no se podra registrar automaticamente.
+    echo          Instala con: npm install -g @anthropic-ai/claude-code
 )
 
 if %ERRORS% gtr 0 (
     echo.
-    echo   Se encontraron %ERRORS% error(es) critico(s). Corrigelos y vuelve a ejecutar.
+    echo   Se encontraron %ERRORS% errores criticos. Corrigelos y vuelve a ejecutar.
     echo.
     goto END_FAILURE
 )
@@ -119,7 +119,7 @@ echo.
 REM =============================================================
 REM PASO 2: Levantar Neo4j
 REM =============================================================
-echo ── PASO 2: Levantando Neo4j ───────────────────────────────
+echo -- PASO 2: Levantando Neo4j --------------------------------
 echo.
 
 docker compose up -d
@@ -134,7 +134,7 @@ echo.
 REM =============================================================
 REM PASO 3: Esperar que Neo4j este listo y ejecutar init-brain
 REM =============================================================
-echo ── PASO 3: Inicializando base de datos ────────────────────
+echo -- PASO 3: Inicializando base de datos ---------------------
 echo.
 
 call windows\init-brain.bat
@@ -147,7 +147,7 @@ echo.
 REM =============================================================
 REM PASO 4: Cargar arquitectura de referencia KLAP BYSF
 REM =============================================================
-echo ── PASO 4: Cargando arquitectura KLAP BYSF ────────────────
+echo -- PASO 4: Cargando arquitectura KLAP BYSF -----------------
 echo.
 
 if exist windows\enrich-brain.bat (
@@ -163,61 +163,14 @@ if exist windows\enrich-brain.bat (
 echo.
 
 REM =============================================================
-REM PASO 5: Registrar MCP en Claude Code
+REM PASO 5: Registrar MCPs (team-brain, context7, sequential-thinking)
+REM Escribe directo al .claude.json para evitar quoting issues del CLI
 REM =============================================================
-echo ── PASO 5: Registrando MCP en Claude Code ─────────────────
+echo -- PASO 5: Registrando MCPs en Claude Code -----------------
 echo.
 
-if "%CLAUDE_AVAILABLE%"=="1" (
-    set MCP_CONFIG={"command":"npx","args":["-y","@knowall-ai/mcp-neo4j-agent-memory"],"env":{"NEO4J_URI":"bolt://localhost:7687","NEO4J_USERNAME":"neo4j","NEO4J_PASSWORD":"!NEO4J_PASS!","NEO4J_DATABASE":"neo4j"}}
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$cf='%USERPROFILE%\.claude.json';$pass='!NEO4J_PASS!';$cfg=@{};if(Test-Path $cf){try{$cfg=Get-Content $cf -Raw|ConvertFrom-Json -AsHashtable}catch{}};if(-not $cfg.ContainsKey('mcpServers')){$cfg['mcpServers']=@{}};$ch=$false;if(-not $cfg['mcpServers'].ContainsKey('team-brain')){$cfg['mcpServers']['team-brain']=@{command='npx';args=@('-y','@knowall-ai/mcp-neo4j-agent-memory');env=@{NEO4J_URI='bolt://localhost:7687';NEO4J_USERNAME='neo4j';NEO4J_PASSWORD=$pass;NEO4J_DATABASE='neo4j'}};$ch=$true;Write-Host '  [OK] team-brain registrado.'}else{Write-Host '  [INFO] team-brain ya registrado. Saltando.'};if(-not $cfg['mcpServers'].ContainsKey('context7')){$cfg['mcpServers']['context7']=@{command='npx';args=@('-y','@upstash/context7-mcp')};$ch=$true;Write-Host '  [OK] context7 registrado.'}else{Write-Host '  [INFO] context7 ya registrado. Saltando.'};if(-not $cfg['mcpServers'].ContainsKey('sequential-thinking')){$cfg['mcpServers']['sequential-thinking']=@{command='npx';args=@('-y','@modelcontextprotocol/server-sequential-thinking')};$ch=$true;Write-Host '  [OK] sequential-thinking registrado.'}else{Write-Host '  [INFO] sequential-thinking ya registrado. Saltando.'};if($ch){$cfg|ConvertTo-Json -Depth 10|Set-Content $cf -Encoding UTF8}"
 
-    claude mcp add-json "team-brain" "!MCP_CONFIG!" --scope user >nul 2>&1
-    if %ERRORLEVEL% equ 0 (
-        echo   [OK] MCP team-brain registrado con scope user.
-    ) else (
-        echo   [INFO] MCP ya registrado o fallo el registro.
-        echo         Verifica con: claude mcp list
-    )
-) else (
-    echo   [SKIP] Claude Code no disponible. Registra el MCP manualmente con:
-    echo          brain.bat mcp
-)
-echo.
-
-REM =============================================================
-REM PASO 5b: Registrar Context7 MCP (opcional — docs en tiempo real)
-REM =============================================================
-echo ── PASO 5b: Registrando Context7 MCP (opcional) ──────────
-echo.
-
-if "%CLAUDE_AVAILABLE%"=="1" (
-    claude mcp add-json "context7" "{\"command\":\"npx\",\"args\":[\"-y\",\"@upstash/context7-mcp\"]}" --scope user >nul 2>&1
-    if %ERRORLEVEL% equ 0 (
-        echo   [OK] Context7 registrado. Agrega "use context7" a tus prompts para docs en tiempo real.
-    ) else (
-        echo   [INFO] Context7 ya registrado o no disponible. Continua...
-    )
-) else (
-    echo   [SKIP] Claude Code no disponible. Registra Context7 con: windows\install-context7.bat
-)
-echo.
-
-REM =============================================================
-REM PASO 5c: Registrar Sequential Thinking MCP
-REM =============================================================
-echo ── PASO 5c: Registrando Sequential Thinking MCP ──────────
-echo.
-
-if "%CLAUDE_AVAILABLE%"=="1" (
-    claude mcp add-json "sequential-thinking" "{\"command\":\"npx\",\"args\":[\"-y\",\"@modelcontextprotocol/server-sequential-thinking\"]}" --scope user >nul 2>&1
-    if %ERRORLEVEL% equ 0 (
-        echo   [OK] Sequential Thinking MCP registrado.
-    ) else (
-        echo   [INFO] Sequential Thinking ya registrado o no disponible. Continua...
-    )
-) else (
-    echo   [SKIP] Claude Code no disponible. Registra Sequential Thinking manualmente.
-)
 echo.
 
 REM =============================================================
@@ -225,7 +178,7 @@ REM PASO 5d: Instalar plugins de Claude Code
 REM (superpowers, context-mode, context7-plugin)
 REM Se configuran via settings.json — no via mcp add-json
 REM =============================================================
-echo ── PASO 5d: Instalando plugins Claude Code ────────────────
+echo -- PASO 5d: Instalando plugins Claude Code -----------------
 echo.
 
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
@@ -238,7 +191,7 @@ echo.
 REM =============================================================
 REM PASO 6: Instalar skill files locales en Claude Code
 REM =============================================================
-echo ── PASO 6: Instalando skills locales ──────────────────────
+echo -- PASO 6: Instalando skills locales -----------------------
 echo.
 
 if exist windows\install-skills.bat (
@@ -254,7 +207,7 @@ echo.
 REM =============================================================
 REM PASO 7: Instalar CLAUDE.md en el perfil del usuario
 REM =============================================================
-echo ── PASO 7: Instalando CLAUDE.md ───────────────────────────
+echo -- PASO 7: Instalando CLAUDE.md ----------------------------
 echo.
 
 if exist CLAUDE.md (
@@ -269,7 +222,7 @@ if exist CLAUDE.md (
     )
 
     copy /y CLAUDE.md "%USERPROFILE%\.claude\CLAUDE.md" >nul
-    if %ERRORLEVEL% equ 0 (
+    if !ERRORLEVEL! equ 0 (
         echo   [OK] CLAUDE.md instalado en %USERPROFILE%\.claude\CLAUDE.md
     ) else (
         echo   [WARN] No se pudo copiar CLAUDE.md. Copíalo manualmente.
@@ -282,7 +235,7 @@ echo.
 REM =============================================================
 REM PASO 8: Guardian Angel hook pre-commit (opcional)
 REM =============================================================
-echo ── PASO 8: Guardian Angel hook pre-commit (opcional) ──────
+echo -- PASO 8: Guardian Angel hook pre-commit (opcional) -------
 echo.
 echo   Para instalar el hook en tu proyecto:
 echo     windows\install-hooks.bat C:\ruta\a\tu\proyecto
@@ -322,9 +275,9 @@ echo     1. Abre Claude Code en tu proyecto
 echo     2. Indica el microservicio en el que vas a trabajar
 echo.
 echo   Operacion diaria:
-echo     windows\brain.bat up      <- levantar Neo4j
-echo     windows\brain.bat down    <- detener Neo4j
-echo     windows\brain.bat status  <- ver estado
+echo     windows\brain.bat up      ^<- levantar Neo4j
+echo     windows\brain.bat down    ^<- detener Neo4j
+echo     windows\brain.bat status  ^<- ver estado
 echo =====================================================
 echo.
 goto END_SUCCESS
