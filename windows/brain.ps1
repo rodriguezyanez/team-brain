@@ -117,12 +117,12 @@ switch ($Action) {
         Write-Host "Sincronizando arquitectura de referencia en Neo4j..." -ForegroundColor Cyan
         Write-Host "(Preserva decisiones, bugs, patterns y memoria del equipo)" -ForegroundColor Gray
         Write-Host ""
-        if (Test-Path "brain-update.ps1") {
-            & .\brain-update.ps1
-        } elseif (Test-Path "brain-update.bat") {
-            cmd /c brain-update.bat
+        if (Test-Path "$PSScriptRoot\brain-update.ps1") {
+            & "$PSScriptRoot\brain-update.ps1"
+        } elseif (Test-Path "$PSScriptRoot\brain-update.bat") {
+            cmd /c "$PSScriptRoot\brain-update.bat"
         } else {
-            Write-Host "[ERROR] brain-update.ps1 no encontrado en el directorio actual." -ForegroundColor Red
+            Write-Host "[ERROR] brain-update.ps1 no encontrado en windows\." -ForegroundColor Red
         }
     }
 
@@ -130,12 +130,12 @@ switch ($Action) {
         Write-Host ""
         Write-Host "Sincronizando memorias pendientes locales con Neo4j..." -ForegroundColor Cyan
         Write-Host ""
-        if (Test-Path "brain-sync.ps1") {
-            & .\brain-sync.ps1
-        } elseif (Test-Path "brain-sync.bat") {
-            cmd /c brain-sync.bat
+        if (Test-Path "$PSScriptRoot\brain-sync.ps1") {
+            & "$PSScriptRoot\brain-sync.ps1"
+        } elseif (Test-Path "$PSScriptRoot\brain-sync.bat") {
+            cmd /c "$PSScriptRoot\brain-sync.bat"
         } else {
-            Write-Host "[ERROR] brain-sync.ps1 no encontrado en el directorio actual." -ForegroundColor Red
+            Write-Host "[ERROR] brain-sync.ps1 no encontrado en windows\." -ForegroundColor Red
         }
     }
 }

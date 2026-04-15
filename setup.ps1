@@ -166,20 +166,20 @@ Write-OK "Contenedor Neo4j iniciado."
 Write-Step "PASO 3: Inicializando base de datos ─────────────────"
 Write-Host ""
 
-if (Test-Path "init-brain.ps1") {
-    & .\init-brain.ps1
+if (Test-Path "windows\init-brain.ps1") {
+    & ".\windows\init-brain.ps1"
     if ($LASTEXITCODE -ne 0) {
-        Write-Err "init-brain.ps1 fallo."
+        Write-Err "windows\init-brain.ps1 fallo."
         exit 1
     }
-} elseif (Test-Path "init-brain.bat") {
-    cmd /c init-brain.bat
+} elseif (Test-Path "windows\init-brain.bat") {
+    cmd /c windows\init-brain.bat
     if ($LASTEXITCODE -ne 0) {
-        Write-Err "init-brain.bat fallo."
+        Write-Err "windows\init-brain.bat fallo."
         exit 1
     }
 } else {
-    Write-Err "No se encontro init-brain.ps1 ni init-brain.bat"
+    Write-Err "No se encontro windows\init-brain.ps1 ni windows\init-brain.bat"
     exit 1
 }
 
@@ -189,15 +189,15 @@ if (Test-Path "init-brain.ps1") {
 Write-Step "PASO 4: Cargando arquitectura KLAP BYSF ─────────────"
 Write-Host ""
 
-if (Test-Path "enrich-brain.bat") {
-    cmd /c enrich-brain.bat
+if (Test-Path "windows\enrich-brain.bat") {
+    cmd /c windows\enrich-brain.bat
     if ($LASTEXITCODE -ne 0) {
         Write-Warn "enrich-brain.bat termino con errores. Continuando..."
     } else {
         Write-OK "Arquitectura de referencia cargada en Neo4j."
     }
 } else {
-    Write-Skip "enrich-brain.bat no encontrado. Saltando enriquecimiento."
+    Write-Skip "windows\enrich-brain.bat no encontrado. Saltando enriquecimiento."
 }
 
 # =============================================================
@@ -234,7 +234,7 @@ if ($claudeAvailable) {
         Write-Info "Context7 ya registrado o no disponible. Continua..."
     }
 } else {
-    Write-Skip "Claude Code no disponible. Registra Context7 con: .\install-context7.ps1"
+    Write-Skip "Claude Code no disponible. Registra Context7 con: .\windows\install-context7.ps1"
 }
 
 # =============================================================
@@ -303,15 +303,15 @@ Write-Host ""
 Write-Step "PASO 6: Instalando skills locales ──────────────────"
 Write-Host ""
 
-if (Test-Path "install-skills.ps1") {
-    & .\install-skills.ps1
+if (Test-Path "windows\install-skills.ps1") {
+    & ".\windows\install-skills.ps1"
     if ($LASTEXITCODE -ne 0) {
         Write-Warn "install-skills.ps1 terminó con errores. Continuando..."
     }
-} elseif (Test-Path "install-skills.bat") {
-    cmd /c install-skills.bat
+} elseif (Test-Path "windows\install-skills.bat") {
+    cmd /c windows\install-skills.bat
 } else {
-    Write-Skip "install-skills.ps1 no encontrado. Saltando skills locales."
+    Write-Skip "windows\install-skills.ps1 no encontrado. Saltando skills locales."
 }
 
 # =============================================================
@@ -349,7 +349,7 @@ if (Test-Path "CLAUDE.md") {
 Write-Step "PASO 8: Guardian Angel hook pre-commit (opcional) ──────"
 Write-Host ""
 Write-Host "  Para instalar el hook en tu proyecto:" -ForegroundColor White
-Write-Host "    .\install-hooks.ps1 -ProjectDir C:\ruta\tu\proyecto" -ForegroundColor Yellow
+Write-Host "    .\windows\install-hooks.ps1 -ProjectDir C:\ruta\tu\proyecto" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "  El hook revisara cada commit Java/Kotlin contra las reglas del equipo." -ForegroundColor White
 Write-Host "  Bypass urgente: git commit --no-verify" -ForegroundColor White
@@ -384,12 +384,12 @@ Write-Host "    MATCH (n:Entity) RETURN n"
 Write-Host ""
 Write-Host "  Proximos pasos:" -ForegroundColor Cyan
 Write-Host "    1. Abre Claude Code en tu proyecto"
-Write-Host "    2. Escribe 'onboarding' para comenzar"
-Write-Host "    3. Escribe 'nivel: dev' para activar tu nivel"
+Write-Host "    2. Indica el microservicio en el que vas a trabajar"
 Write-Host ""
 Write-Host "  Operacion diaria:"
-Write-Host "    .\brain.ps1 up      <- levantar Neo4j"
-Write-Host "    .\brain.ps1 down    <- detener Neo4j"
-Write-Host "    .\brain.ps1 status  <- ver estado"
+Write-Host "    .\windows\brain.ps1 up      <- levantar Neo4j"
+Write-Host "    .\windows\brain.ps1 down    <- detener Neo4j"
+Write-Host "    .\windows\brain.ps1 status  <- ver estado"
+Write-Host "    .\windows\brain.ps1 sync    <- sincronizar memoria local pendiente"
 Write-Host "=====================================================" -ForegroundColor Green
 Write-Host ""

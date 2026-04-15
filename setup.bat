@@ -137,9 +137,9 @@ REM =============================================================
 echo ── PASO 3: Inicializando base de datos ────────────────────
 echo.
 
-call init-brain.bat
+call windows\init-brain.bat
 if %ERRORLEVEL% neq 0 (
-    echo   [ERROR] init-brain.bat fallo.
+    echo   [ERROR] windows\init-brain.bat fallo.
     goto END_FAILURE
 )
 echo.
@@ -150,15 +150,15 @@ REM =============================================================
 echo ── PASO 4: Cargando arquitectura KLAP BYSF ────────────────
 echo.
 
-if exist enrich-brain.bat (
-    call enrich-brain.bat
+if exist windows\enrich-brain.bat (
+    call windows\enrich-brain.bat
     if %ERRORLEVEL% neq 0 (
         echo   [WARN] enrich-brain.bat termino con errores. Continuando...
     ) else (
         echo   [OK] Arquitectura de referencia cargada en Neo4j.
     )
 ) else (
-    echo   [WARN] enrich-brain.bat no encontrado. Saltando enriquecimiento.
+    echo   [WARN] windows\enrich-brain.bat no encontrado. Saltando enriquecimiento.
 )
 echo.
 
@@ -198,7 +198,7 @@ if "%CLAUDE_AVAILABLE%"=="1" (
         echo   [INFO] Context7 ya registrado o no disponible. Continua...
     )
 ) else (
-    echo   [SKIP] Claude Code no disponible. Registra Context7 con: install-context7.bat
+    echo   [SKIP] Claude Code no disponible. Registra Context7 con: windows\install-context7.bat
 )
 echo.
 
@@ -241,13 +241,13 @@ REM =============================================================
 echo ── PASO 6: Instalando skills locales ──────────────────────
 echo.
 
-if exist install-skills.bat (
-    call install-skills.bat
+if exist windows\install-skills.bat (
+    call windows\install-skills.bat
     if %ERRORLEVEL% neq 0 (
         echo   [WARN] install-skills.bat termino con errores. Continuando...
     )
 ) else (
-    echo   [SKIP] install-skills.bat no encontrado. Saltando skills locales.
+    echo   [SKIP] windows\install-skills.bat no encontrado. Saltando skills locales.
 )
 echo.
 
@@ -285,7 +285,7 @@ REM =============================================================
 echo ── PASO 8: Guardian Angel hook pre-commit (opcional) ──────
 echo.
 echo   Para instalar el hook en tu proyecto:
-echo     install-hooks.bat C:\ruta\a\tu\proyecto
+echo     windows\install-hooks.bat C:\ruta\a\tu\proyecto
 echo.
 echo   El hook revisara cada commit Java/Kotlin contra las reglas del equipo.
 echo   Bypass urgente: git commit --no-verify
@@ -319,13 +319,12 @@ echo     MATCH (n:Entity) RETURN n
 echo.
 echo   Proximos pasos:
 echo     1. Abre Claude Code en tu proyecto
-echo     2. Escribe 'onboarding' para comenzar
-echo     3. Escribe 'nivel: dev' para activar tu nivel
+echo     2. Indica el microservicio en el que vas a trabajar
 echo.
 echo   Operacion diaria:
-echo     brain.bat up      <- levantar Neo4j
-echo     brain.bat down    <- detener Neo4j
-echo     brain.bat status  <- ver estado
+echo     windows\brain.bat up      <- levantar Neo4j
+echo     windows\brain.bat down    <- detener Neo4j
+echo     windows\brain.bat status  <- ver estado
 echo =====================================================
 echo.
 goto END_SUCCESS

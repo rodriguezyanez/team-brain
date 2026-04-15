@@ -136,16 +136,16 @@ fi
 # =============================================================
 step "PASO 3: Inicializando base de datos ──────────────────────"
 
-if [ -f "./init-brain.sh" ]; then
-    chmod +x ./init-brain.sh
-    if ./init-brain.sh; then
+if [ -f "./linux/init-brain.sh" ]; then
+    chmod +x ./linux/init-brain.sh
+    if ./linux/init-brain.sh; then
         : # ok ya lo imprime init-brain.sh
     else
-        err "init-brain.sh falló."
+        err "linux/init-brain.sh falló."
         exit 1
     fi
 else
-    err "init-brain.sh no encontrado."
+    err "linux/init-brain.sh no encontrado."
     exit 1
 fi
 
@@ -154,15 +154,15 @@ fi
 # =============================================================
 step "PASO 4: Cargando arquitectura KLAP BYSF ─────────────────"
 
-if [ -f "./enrich-brain.sh" ]; then
-    chmod +x ./enrich-brain.sh
-    if ./enrich-brain.sh; then
+if [ -f "./linux/enrich-brain.sh" ]; then
+    chmod +x ./linux/enrich-brain.sh
+    if ./linux/enrich-brain.sh; then
         ok "Arquitectura de referencia cargada en Neo4j."
     else
         warn "enrich-brain.sh terminó con errores. Continuando..."
     fi
 else
-    skip "enrich-brain.sh no encontrado. Saltando enriquecimiento."
+    skip "linux/enrich-brain.sh no encontrado. Saltando enriquecimiento."
 fi
 
 # =============================================================
@@ -256,11 +256,11 @@ info "      Conecta tu cuenta Atlassian en: https://claude.ai/settings/integrati
 # =============================================================
 step "PASO 6: Instalando skills locales ──────────────────────"
 
-if [ -f "./install-skills.sh" ]; then
-    chmod +x ./install-skills.sh
-    ./install-skills.sh || warn "install-skills.sh terminó con errores. Continuando..."
+if [ -f "./linux/install-skills.sh" ]; then
+    chmod +x ./linux/install-skills.sh
+    ./linux/install-skills.sh || warn "install-skills.sh terminó con errores. Continuando..."
 else
-    skip "install-skills.sh no encontrado. Saltando skills locales."
+    skip "linux/install-skills.sh no encontrado. Saltando skills locales."
 fi
 
 # =============================================================
@@ -295,7 +295,7 @@ fi
 step "PASO 8: Guardian Angel hook pre-commit (opcional) ──────"
 
 echo "  Para instalar el hook en tu proyecto:"
-echo "    ./install-hooks.sh /ruta/a/tu/proyecto"
+echo "    ./linux/install-hooks.sh /ruta/a/tu/proyecto"
 echo ""
 echo "  El hook revisará cada commit Java/Kotlin contra las reglas del equipo."
 echo "  Bypass urgente: git commit --no-verify"
@@ -330,12 +330,12 @@ echo "    MATCH (n:Entity) RETURN n"
 echo
 echo -e "  ${CYAN}Próximos pasos:${NC}"
 echo "    1. Abre Claude Code en tu proyecto"
-echo "    2. Escribe 'onboarding' para comenzar"
-echo "    3. Escribe 'nivel: dev' para activar tu nivel"
+echo "    2. Indica el microservicio en el que vas a trabajar"
 echo
 echo "  Operación diaria:"
-echo "    docker compose up -d    <- levantar Neo4j"
-echo "    docker compose down     <- detener Neo4j"
-echo "    docker compose ps       <- ver estado"
+echo "    docker compose up -d         <- levantar Neo4j"
+echo "    docker compose down          <- detener Neo4j"
+echo "    docker compose ps            <- ver estado"
+echo "    ./linux/brain-sync.sh        <- sincronizar memoria local pendiente"
 echo -e "${GREEN}=====================================================${NC}"
 echo
