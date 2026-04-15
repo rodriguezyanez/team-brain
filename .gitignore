@@ -3,6 +3,8 @@ logs/
 docs/
 vault/
 
+GEMINI.md
+
 *.log
 .claude/settings.local.json
 
