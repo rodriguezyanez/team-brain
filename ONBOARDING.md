@@ -1,99 +1,18 @@
-# Team Brain — Guía de niveles y onboarding
+# Team Brain — Guía de onboarding
 
 Guía para desarrolladores que se incorporan al ecosistema Team Brain.
 
 ---
 
-## Sistema de niveles
+## Cómo trabaja Claude con este equipo
 
-Claude Code adapta su forma de explicar y generar código según el nivel declarado. Para activar un nivel escribe en cualquier momento:
-
-```
-nivel: initial
-nivel: junior
-nivel: dev
-nivel: senior
-```
-
-Si no declaras un nivel, Claude evalúa tus preguntas y adapta automáticamente.
+Claude asume conocimiento completo del stack (Spring Boot, Kafka, patrones del equipo). Va directo al punto, solo menciona contexto cuando hay algo no obvio o una decisión que rompe el estándar.
 
 ---
 
-## ¿Qué cambia en cada nivel?
+## Primeros pasos al incorporarte
 
-### initial — Estoy empezando con Spring Boot
-
-Claude asume que sabes Java pero no Spring ni los patrones del equipo.
-
-- Explica cada concepto antes de usarlo
-- Muestra código completo con explicación línea por línea
-- Usa analogías para conceptos complejos
-- JavaDoc detallado con contexto de negocio y parámetros descritos didácticamente
-- Propone ejercicios simples para validar cada concepto
-- Ejemplo de lo que verás:
-
-```
-"Antes de ver el código, te explico qué es un @Bean: es un objeto
-que Spring gestiona por ti — lo crea, lo inyecta donde lo necesites
-y controla su ciclo de vida. Piensa en Spring como un almacén de
-objetos que tú registras y él administra..."
-```
-
----
-
-### junior — Conozco Spring pero soy nuevo en este equipo
-
-Claude asume que conoces Spring Boot, pero no los patrones específicos del equipo.
-
-- Explica el "por qué" de cada decisión (por qué JdbcTemplate y no JPA, por qué envío Kafka síncrono, etc.)
-- Compara con alternativas descartadas para que entiendas el razonamiento
-- Código con comentarios en puntos clave
-- JavaDoc con contexto de negocio
-- Ejercicios de implementación guiada
-
----
-
-### dev — Conozco el stack y los patrones (default)
-
-El nivel estándar para desarrolladores con experiencia en el equipo.
-
-- Contexto de negocio cuando es relevante
-- Código limpio siguiendo los estándares
-- JavaDoc estándar del equipo
-- Claude consulta la memoria antes de proponer algo que ya esté decidido
-
----
-
-### senior — Solo dime lo que necesito saber
-
-Para desarrolladores con dominio completo del stack y los patrones.
-
-- Va directo al punto
-- Solo menciona contexto si hay algo no obvio
-- JavaDoc conciso
-
----
-
-## Flujo de onboarding
-
-Si eres nuevo en el equipo, escribe en Claude Code:
-
-```
-onboarding
-```
-
-Claude te guiará por estos temas en orden, esperando tu confirmación en cada etapa:
-
-1. Stack tecnológico — Java 21, Spring Boot 3.5.11, Gradle 9
-2. Arquitectura de capas — el flujo completo de un mensaje Kafka
-3. Estructura de paquetes — dónde vive cada clase
-4. Patrones clave — Factory, Service Layer, Saga
-5. Kafka — configuración, topics, DLQ, circuit breaker
-6. Persistencia — JdbcTemplate, ConstantsQuery, paginación cursor-based
-7. Convenciones — naming, logging, JavaDoc obligatorio
-8. Reglas DO/DON'T — las 21 reglas de buenas prácticas y las 13 cosas que nunca hacer
-
-Al final propone un ejercicio práctico adaptado a tu nivel.
+Al abrir Claude Code por primera vez, indicá el proyecto en el que vas a trabajar. Claude carga el contexto desde Neo4j y aplica el Standard KLAP BYSF automáticamente.
 
 ---
 
@@ -121,25 +40,7 @@ public XxxOutputDto procesarOrdenPago(XxxInputDto input) {
 
 ---
 
-## Prompts útiles por nivel
-
-### Si eres initial o junior
-
-```
-Explícame cómo funciona el Factory Pattern de Kafka en este equipo
-antes de que empiece a implementarlo
-```
-
-```
-Quiero implementar un Repository. Guíame paso a paso
-siguiendo los estándares del equipo
-```
-
-```
-¿Por qué el equipo usa JdbcTemplate y no JPA?
-```
-
-### Si eres dev o senior
+## Prompts útiles
 
 ```
 Antes de tocar el módulo de pagos, revisa la memoria del equipo
@@ -236,62 +137,15 @@ sdd: crear WebClient para el servicio de autorizaciones externas
 
 **Fase 5 — Verificar** → Claude confirma que todo cumple: tests, JavaDoc, naming, reglas críticas
 
-### Cómo se ve por nivel
+### Ejemplo de flujo
 
-**Nivel initial — Estoy aprendiendo Spring Boot:**
-```
-sdd: quiero crear un repositorio para guardar órdenes de pago
-
-→ Fase 1: Claude pregunta: "¿Qué campos tiene la orden de pago? ¿Hay
-  alguna tabla ya creada? ¿Cuántos registros estimás que va a tener?"
-
-→ Fase 2: Claude explica: "Vamos a crear XxxRepository con @Repository.
-  El equipo usa JdbcTemplate en lugar de JPA porque [razón completa con
-  analogía]. La estructura quedaría así: [paquete completo explicado]"
-
-→ Fase 3: Claude verifica cada regla y te muestra un ✅ o ❌
-
-→ Fase 4: Claude genera el código completo explicando cada línea
-
-→ Fase 5: Claude genera el test y te propone un ejercicio de validación
-```
-
-**Nivel junior — Conozco Spring, nuevo en el equipo:**
-```
-sdd: implementar KafkaListener para el dominio de liquidaciones
-
-→ Fase 1: Claude consulta la memoria del equipo y mapea:
-  topics input/output/DLQ, tablas PostgreSQL, servicios externos
-
-→ Fase 2: Claude propone componentes con justificación:
-  "Usamos ErrorHandlingDeserializer porque... el equipo descartó X porque..."
-
-→ Fase 3: Checklist validado con contexto de negocio en cada punto
-
-→ Fase 4: Código con comentarios en puntos clave del estándar
-
-→ Fase 5: Tests + confirmación de cobertura 95%
-```
-
-**Nivel dev — Conozco el stack y los patrones:**
 ```
 sdd: agregar cursor-based pagination al LiquidacionRepository
 
-→ Fase 1 + 2: Resumen rápido del contexto y propuesta directa
-
-→ Fase 3: Checklist sin explicaciones largas
-
+→ Fase 1 + 2: Contexto desde Neo4j y propuesta directa
+→ Fase 3: Checklist contra reglas DO/DON'T
 → Fase 4: Código limpio, JavaDoc estándar
-
-→ Fase 5: Confirmación con checklist compacto
-```
-
-**Nivel senior — Solo lo que necesito:**
-```
-sdd: refactorizar KafkaConfig del dominio de pagos para usar la clase base
-
-→ Claude fluye por las fases automáticamente, solo te detiene si hay
-  una decisión bloqueante o algo que contradice el estándar
+→ Fase 5: Verificación con checklist explícito
 ```
 
 ### Tip: SDD vs prompt directo
@@ -307,10 +161,7 @@ sdd: refactorizar KafkaConfig del dominio de pagos para usar la clase base
 
 ## Reglas que Claude verifica automáticamente
 
-Antes de generar código, Claude consulta las reglas DO/DON'T guardadas en Neo4j. Si propones algo que contradice el estándar, te lo indicará:
-
-- **Nivel initial/junior**: explicación del por qué con contexto de negocio
-- **Nivel dev/senior**: mención breve de la regla y continúa
+Antes de generar código, Claude consulta las reglas DO/DON'T guardadas en Neo4j. Si propones algo que contradice el estándar, menciona la regla brevemente y continúa.
 
 Ejemplos de advertencias que verás:
 
@@ -426,4 +277,4 @@ Cada archivo contiene:
 
 ---
 
-*Team Brain KLAP BYSF · Guía de niveles v1.0 · Abril 2025*
+*Team Brain KLAP BYSF · Guía de onboarding v2.0 · Abril 2026*

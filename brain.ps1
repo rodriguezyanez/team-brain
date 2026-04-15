@@ -17,7 +17,7 @@
 
 param(
     [Parameter(Position=0)]
-    [ValidateSet("up","down","restart","status","logs","browser","mcp","update","")]
+    [ValidateSet("up","down","restart","status","logs","browser","mcp","update","sync","")]
     [string]$Action = ""
 
 if ($Action -eq "") {
@@ -32,6 +32,7 @@ if ($Action -eq "") {
     Write-Host "  .\brain.ps1 browser  Abrir Neo4j Browser"
     Write-Host "  .\brain.ps1 mcp      Registrar MCPs (team-brain + Context7) en Claude Code"
     Write-Host "  .\brain.ps1 update   Sincronizar arquitectura en Neo4j (preserva memoria)"
+    Write-Host "  .\brain.ps1 sync     Sincronizar memorias pendientes locales con Neo4j"
     Write-Host ""
     exit 0
 }
@@ -122,6 +123,19 @@ switch ($Action) {
             cmd /c brain-update.bat
         } else {
             Write-Host "[ERROR] brain-update.ps1 no encontrado en el directorio actual." -ForegroundColor Red
+        }
+    }
+
+    "sync" {
+        Write-Host ""
+        Write-Host "Sincronizando memorias pendientes locales con Neo4j..." -ForegroundColor Cyan
+        Write-Host ""
+        if (Test-Path "brain-sync.ps1") {
+            & .\brain-sync.ps1
+        } elseif (Test-Path "brain-sync.bat") {
+            cmd /c brain-sync.bat
+        } else {
+            Write-Host "[ERROR] brain-sync.ps1 no encontrado en el directorio actual." -ForegroundColor Red
         }
     }
 }

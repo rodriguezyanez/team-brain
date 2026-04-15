@@ -2,50 +2,13 @@
 
 ---
 
-## Nivel activo
+## Comportamiento
 
-El nivel por defecto es **dev**. El dev puede cambiar su nivel en cualquier momento:
-
-- `nivel: initial` — explicación desde cero, conceptos básicos, guía paso a paso
-- `nivel: junior` — explica decisiones de diseño y patrones, valida entendimiento
-- `nivel: dev` — contexto del negocio y arquitectura, asume conocimiento técnico
-- `nivel: senior` — solo contexto específico del dominio, va directo al punto
-
-Cuando alguien escribe `nivel: junior` (o cualquier otro nivel), activas ese modo para el resto de la conversación.
-
-Si no se declara nivel explícito, evalúa las preguntas del dev durante la conversación y adapta el nivel automáticamente: preguntas sobre conceptos básicos de Java o Spring → initial/junior; preguntas sobre patrones y decisiones → dev; preguntas sobre trade-offs arquitectónicos → senior.
-
----
-
-## Comportamiento por nivel
-
-### initial
-- Explica qué es cada concepto antes de usarlo (ej: "un `@Bean` es...")
-- Usa analogías simples
-- Muestra el código completo, nunca fragmentos
-- Después de cada bloque de código explica línea por línea qué hace
-- Propone ejercicios prácticos simples para validar entendimiento
-- Formato: explicación → ejemplo → ejercicio
-- JavaDoc: genera con explicación muy detallada, incluye `@param` `@return` con descripción didáctica
-
-### junior
-- Asume que sabe Java pero no los patrones del equipo
-- Explica el "por qué" de cada decisión de diseño
-- Muestra código con comentarios en los puntos clave
-- Compara con alternativas que descartamos (ej: "podríamos usar JPA pero el equipo decidió...")
-- Propone ejercicios de implementación guiada
-- JavaDoc: genera según estándar del equipo + explica el objetivo del método con contexto de negocio
-
-### dev (default)
-- Asume conocimiento de Spring Boot y los patrones del equipo
-- Da contexto de negocio cuando es relevante
-- Código limpio con JavaDoc estándar del equipo
-- Consulta la memoria antes de proponer algo que ya esté decidido
-
-### senior
 - Va directo al punto
+- Asume conocimiento profundo de Spring Boot, Kafka y los patrones del equipo
 - Solo menciona contexto si hay algo no obvio o una decisión que rompe el estándar
-- JavaDoc conciso y preciso
+- Consulta la memoria antes de proponer algo que ya esté decidido
+- Código limpio sin comentarios explicativos innecesarios
 
 ---
 
@@ -74,8 +37,7 @@ Con el contexto encontrado:
 1. Resumir brevemente: responsabilidad del servicio, topics Kafka relevantes, tablas principales, dependencias externas
 2. Buscar decisiones y patrones específicos del proyecto: `memory_search("[proyecto] decisions")` + `memory_search("[proyecto] patterns")`
 3. Cargar reglas DO/DON'T: `memory_search("Reglas DO")` + `memory_search("Reglas DONT")`
-4. Detectar o confirmar el nivel activo
-5. Continuar con la tarea
+4. Continuar con la tarea
 
 ### Paso 4 — Proyecto nuevo: investigar con SDD antes de registrar
 
@@ -146,6 +108,47 @@ Cuando el dev trabaja con APIs del stack, agregar `use context7` al prompt para 
 
 ---
 
+## Fallback de memoria local (cuando Neo4j no está disponible)
+
+Cuando `mcp__team-brain__create_memory` o `mcp__team-brain__create_connection` falla por Neo4j no disponible:
+
+### Protocolo de escritura local
+
+1. Avisar: "Neo4j no disponible — guardando memoria localmente para sync posterior"
+2. Usar la herramienta **Write/Edit** para appender al archivo de cola:
+   - Windows: `%USERPROFILE%\.claude\pending-memories.jsonl`
+   - Linux/macOS: `~/.claude/pending-memories.jsonl`
+3. Formato de la entrada (una línea JSON):
+
+```jsonl
+{"timestamp":"<ISO8601>","type":"memory","name":"<nombre>","entityType":"<tipo>","observations":["<obs1>","<obs2>"]}
+{"timestamp":"<ISO8601>","type":"connection","from":"<entidad-origen>","to":"<entidad-destino>","relationType":"<TIPO_REL>"}
+```
+
+4. Confirmar: "✅ Guardado localmente. Ejecutá `brain.bat sync` cuando Neo4j vuelva a estar disponible."
+
+### Protocolo de inicio de sesión — chequeo de pendientes
+
+Al iniciar sesión, **antes de preguntar el proyecto**, verificar si existe el archivo de cola:
+
+```
+Windows: %USERPROFILE%\.claude\pending-memories.jsonl
+Linux:   ~/.claude/pending-memories.jsonl
+```
+
+Si existe y tiene contenido → avisar:
+
+> "⚠️ Hay memorias pendientes de sincronizar con Neo4j. Ejecutá `brain.bat sync` (o `brain-sync.sh`) para volcarlas antes de continuar."
+
+Luego continuar con el flujo normal de selección de proyecto.
+
+### Regla de integridad
+
+- Siempre intentar Neo4j primero. Solo usar el fallback local si el MCP falla.
+- No perder memorias silenciosamente — si falla el MCP y no se puede escribir el fallback, avisar explícitamente al dev.
+
+---
+
 ## Skill registry local (fallback cuando Neo4j no está disponible)
 
 Si el MCP `team-brain` no responde o Neo4j no está corriendo, usa los skill files locales como fuente de conocimiento del equipo. Estos archivos viven en `~/.claude/skills/` (Linux/macOS) o `%USERPROFILE%\.claude\skills\` (Windows).
@@ -199,8 +202,7 @@ Formato estándar del equipo:
 
 Reglas:
 - La primera línea describe el **objetivo** del método, no cómo está implementado
-- Para niveles `initial` y `junior`: incluir explicación más larga y contexto de negocio
-- Para niveles `dev` y `senior`: conciso y directo
+- Conciso y directo — sin explicaciones redundantes
 - **Nunca** omitir JavaDoc en código generado para este equipo
 
 ---
@@ -243,17 +245,16 @@ sdd: crear WebClient para el servicio de autorizaciones
 | 4 | **Implementar** | Código siguiendo skill files del equipo, JavaDoc obligatorio |
 | 5 | **Verificar** | Tests 95%+, JavaDoc completo, naming correcto, reglas críticas |
 
-**Claude NO avanza a la siguiente fase sin confirmación del dev** (excepto nivel `senior` que puede fluir automáticamente si no hay bloqueos).
+**Claude puede fluir entre fases automáticamente si no hay bloqueos. Pausa solo cuando hay ambigüedad o decisión que requiere validación del dev.**
 
-### Comportamiento por fase y nivel
+### Comportamiento por fase
 
 **Fase 1 — Explorar:**
 - Siempre: `memory_search("[dominio]")` + `memory_search("Reglas DO")` + `memory_search("Reglas DONT")`
 - Si Neo4j no disponible: usar `skill-registry.md` como fallback
 
 **Fase 2 — Proponer:**
-- `initial`/`junior`: lista componentes + explica cada decisión + compara con alternativas descartadas
-- `dev`/`senior`: propuesta directa, solo menciona si algo rompe el estándar
+- Propuesta directa. Solo menciona si algo rompe el estándar.
 
 **Fase 3 — Validar:**
 - Consultar `skills/sdd-checklist.md` para la lista completa de verificaciones
@@ -261,8 +262,7 @@ sdd: crear WebClient para el servicio de autorizaciones
 
 **Fase 4 — Implementar:**
 - Leer el skill file correspondiente antes de generar: `kafka-config.md`, `processor.md`, etc.
-- `initial`/`junior`: código completo con comentarios explicativos
-- `dev`/`senior`: código limpio directo
+- Código limpio y directo
 
 **Fase 5 — Verificar:**
 - Consultar `skills/sdd-checklist.md` Fase 5
@@ -270,12 +270,7 @@ sdd: crear WebClient para el servicio de autorizaciones
 
 ### Criterios de completitud
 
-| Nivel | Completitud |
-|-------|-------------|
-| `initial` | Código completo + JavaDoc didáctico + ejercicio de validación propuesto |
-| `junior` | Código completo + JavaDoc estándar + decisiones explicadas |
-| `dev` | Código limpio + JavaDoc estándar + contexto de negocio cuando aplica |
-| `senior` | Código directo + JavaDoc conciso + solo lo no-obvio |
+Código directo + JavaDoc conciso + solo lo no-obvio mencionado explícitamente.
 
 ---
 
@@ -286,9 +281,7 @@ Antes de generar cualquier código, verifica en memoria:
 - ¿Las reglas DO/DON'T aplican a este caso?
 - ¿El naming sigue las convenciones del equipo?
 
-Si el dev propone algo que contradice el estándar, menciona la regla relevante con contexto:
-- Nivel `initial`/`junior`: explica por qué el equipo tomó esa decisión
-- Nivel `dev`/`senior`: menciona brevemente la regla y continúa
+Si el dev propone algo que contradice el estándar, menciona brevemente la regla y continúa.
 
 ---
 
@@ -319,26 +312,5 @@ Developer    → miembros del equipo y especialidades
 
 ---
 
-## Modo onboarding
 
-Si un dev nuevo escribe `onboarding` o `soy nuevo en el equipo`, activa el flujo de onboarding:
-
-1. **Bienvenida** — presenta el ecosistema Team Brain y el estándar KLAP BYSF
-2. **Seleccionar proyecto** — preguntar en qué microservicio va a trabajar y seguir el Protocolo de inicio de sesión (Paso 2 → 3 o 4 según corresponda)
-3. **Evalúa el nivel** — pregunta su experiencia con Java/Spring Boot
-4. **Activa el nivel correspondiente** y explícaselo
-5. **Recorre las categorías del estándar** en este orden, una a la vez, esperando confirmación antes de continuar:
-    - Stack tecnológico (versiones y dependencias clave)
-    - Arquitectura de capas (el diagrama mental del flujo)
-    - Estructura de paquetes (dónde vive cada cosa)
-    - Patrones clave (Factory, Service Layer, Saga)
-    - Kafka (si el proyecto seleccionado lo usa)
-    - Persistencia (JdbcTemplate, ConstantsQuery)
-    - Convenciones de naming y logging
-    - Reglas DO/DON'T
-6. **Propone un ejercicio práctico** adaptado al nivel y al dominio del proyecto seleccionado
-7. **Confirma comprensión** antes de cerrar el onboarding
-
----
-
-*Team Brain KLAP BYSF · Versión 2.0 · Abril 2025*
+*Team Brain KLAP BYSF · Versión 3.0 · Abril 2026*
