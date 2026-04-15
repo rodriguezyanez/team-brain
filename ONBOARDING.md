@@ -10,9 +10,29 @@ Claude asume conocimiento completo del stack (Spring Boot, Kafka, patrones del e
 
 ---
 
+## Instalación y desinstalación
+
+El instalador unificado (`setup.bat` / `setup.sh`) hace todo en un comando. Antes de tocar cualquier archivo, crea un backup completo de tu configuración de Claude Code en `~/.claude/team-brain-backup/`.
+
+Para desinstalar y dejar todo como estaba:
+
+```bat
+# Windows
+setup.bat --uninstall
+```
+
+```bash
+# Linux / macOS
+./setup.sh --uninstall
+```
+
+Restaura exactamente: `.claude.json`, `settings.json`, skills y `CLAUDE.md`. Docker, Node.js y Claude Code no se tocan.
+
+---
+
 ## Primeros pasos al incorporarte
 
-Al abrir Claude Code por primera vez, indicá el proyecto en el que vas a trabajar. Claude carga el contexto desde Neo4j y aplica el Standard KLAP BYSF automáticamente.
+Al abrir Claude Code por primera vez, indica el proyecto en el que vas a trabajar. Claude carga el contexto desde Neo4j y aplica el Standard KLAP BYSF automáticamente.
 
 ---
 
@@ -65,7 +85,7 @@ El equipo tiene instalado **Context7**, un MCP que provee documentación en tiem
 
 ### Cómo usarlo
 
-Agregá `use context7` a cualquier prompt cuando necesitás información precisa de una librería:
+Agrega `use context7` a cualquier prompt cuando necesitas información precisa de una librería:
 
 ```
 use context7, ¿cómo configuro un CircuitBreaker con Resilience4j 2.2.0?
@@ -93,7 +113,7 @@ use context7, ¿cómo hago retry con WebClient en Spring WebFlux?
 
 ### Tip
 
-Combiná Context7 con SDD para implementaciones completas:
+Combina Context7 con SDD para implementaciones completas:
 ```
 sdd: implementar WebClient para el servicio de autorizaciones
 use context7 para los timeouts y la configuración de retry
@@ -107,10 +127,10 @@ SDD (Spec-Driven Development) es el flujo de trabajo del equipo para implementar
 
 ### Cómo activarlo
 
-Escribí en Claude Code:
+Escribe en Claude Code:
 
 ```
-sdd: [descripción de lo que querés construir]
+sdd: [descripción de lo que quieres construir]
 ```
 
 Ejemplos:
@@ -150,7 +170,7 @@ sdd: agregar cursor-based pagination al LiquidacionRepository
 
 ### Tip: SDD vs prompt directo
 
-| Si querés... | Usá... |
+| Si quieres... | Usa... |
 |---|---|
 | Construir algo nuevo siguiendo el estándar | `sdd: [descripción]` |
 | Entender cómo funciona algo existente | pregunta directa |
@@ -214,7 +234,7 @@ install-hooks.bat C:\ruta\a\tu\proyecto
 
 ### Cómo funciona
 
-1. Hacés `git commit`
+1. Haces `git commit`
 2. El hook obtiene el diff staged de archivos `.java` / `.kt`
 3. Claude revisa el diff contra las 10 reglas
 4. Si todo OK → `✅ Guardian Angel: commit aprobado` → commit procede
@@ -226,7 +246,7 @@ install-hooks.bat C:\ruta\a\tu\proyecto
 git commit --no-verify -m "hotfix: corrección urgente en producción"
 ```
 
-> Usá `--no-verify` solo en emergencias reales. El hook existe para proteger la calidad del código.
+> Usa `--no-verify` solo en emergencias reales. El hook existe para proteger la calidad del código.
 
 ### Desinstalar
 
@@ -258,10 +278,10 @@ Se genera una carpeta `vault/` con un archivo `.md` por cada nodo del grafo.
 
 ### Abrir en Obsidian
 
-1. Abrí [Obsidian](https://obsidian.md/) (gratuito)
+1. Abre [Obsidian](https://obsidian.md/) (gratuito)
 2. **Archivo → Abrir vault → seleccionar la carpeta `vault/`**
-3. Abrí `README.md` para el mapa de navegación completo
-4. Hacé clic en cualquier `[[wikilink]]` para navegar entre nodos
+3. Abre `README.md` para el mapa de navegación completo
+4. Haz clic en cualquier `[[wikilink]]` para navegar entre nodos
 
 ### Estructura del vault
 

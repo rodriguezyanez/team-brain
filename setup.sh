@@ -22,15 +22,194 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 GRAY='\033[0;37m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-# -- Helpers ---------------------------------------------------
 ok()   { echo -e "  ${GREEN}[OK]${NC}   $1"; }
 warn() { echo -e "  ${YELLOW}[WARN]${NC} $1"; }
 err()  { echo -e "  ${RED}[ERROR]${NC} $1"; }
 info() { echo -e "  ${GRAY}[INFO]${NC} $1"; }
 skip() { echo -e "  ${GRAY}[SKIP]${NC} $1"; }
 step() { echo -e "\n${CYAN}-- $1${NC}"; echo; }
+
+# =============================================================
+# Modo desinstalacion
+# =============================================================
+if [ "${1:-}" = "--uninstall" ]; then
+    echo
+    echo -e "${RED}=====================================================${NC}"
+    echo -e "${RED}  Team Brain -- Desinstalador${NC}"
+    echo -e "${RED}  KLAP BYSF Knowledge Graph Uninstall${NC}"
+    echo -e "${RED}=====================================================${NC}"
+    echo
+    echo "  Este proceso eliminará:"
+    echo "    - Contenedor Neo4j y sus datos (docker compose down -v)"
+    echo "    - MCPs: team-brain, context7, sequential-thinking"
+    echo "    - Plugins de Claude Code"
+    echo "    - Skills locales de ~/.claude/skills/"
+    echo "    - CLAUDE.md de ~/.claude/"
+    echo
+    echo "  Los programas instalados (Docker, Node.js, Claude Code)"
+    echo "  NO serán desinstalados."
+    echo
+    read -rp "   Confirmar desinstalación? [s/N]: " CONFIRM
+    if [[ ! "${CONFIRM}" =~ ^[sS]$ ]]; then
+        echo
+        echo "  Desinstalación cancelada."
+        echo
+        exit 0
+    fi
+    echo
+
+    # -- 1. Detener y eliminar Neo4j + datos --------------------
+    step "Deteniendo Neo4j y eliminando datos ─────────────────"
+    if docker compose down -v 2>/dev/null; then
+        ok "Contenedor Neo4j detenido y datos eliminados."
+    else
+        warn "No se pudo detener Neo4j o ya estaba detenido."
+    fi
+
+    BACKUP_DIR="$HOME/.claude/team-brain-backup"
+    SKILL_FILES=(kafka-config.md kafka-listener.md processor.md repository.md webclient.md exceptions.md testing.md openapi.md skill-registry.md sdd-microservice.md sdd-checklist.md)
+
+    if [ -d "$BACKUP_DIR" ]; then
+        # ── Restauracion completa desde backup ──────────────────
+
+        # -- 2. Restaurar .claude.json ---------------------------
+        step "Restaurando .claude.json ──────────────────────────────"
+        if [ -f "$BACKUP_DIR/claude.json" ]; then
+            cp "$BACKUP_DIR/claude.json" "$HOME/.claude.json"
+            ok ".claude.json restaurado desde backup."
+        else
+            [ -f "$HOME/.claude.json" ] && rm -f "$HOME/.claude.json" && ok ".claude.json eliminado (no existía antes de instalar)." || info ".claude.json no encontrado. Nada que restaurar."
+        fi
+
+        # -- 3. Restaurar settings.json --------------------------
+        step "Restaurando settings.json ──────────────────────────────"
+        if [ -f "$BACKUP_DIR/settings.json" ]; then
+            cp "$BACKUP_DIR/settings.json" "$HOME/.claude/settings.json"
+            ok "settings.json restaurado desde backup."
+        else
+            [ -f "$HOME/.claude/settings.json" ] && rm -f "$HOME/.claude/settings.json" && ok "settings.json eliminado (no existía antes de instalar)." || info "settings.json no encontrado. Nada que restaurar."
+        fi
+
+        # -- 4. Restaurar skills ---------------------------------
+        step "Restaurando skills ──────────────────────────────────────"
+        SKILLS_DIR="$HOME/.claude/skills"
+        for f in "${SKILL_FILES[@]}"; do
+            rm -f "$SKILLS_DIR/$f"
+        done
+        if [ -d "$BACKUP_DIR/skills" ]; then
+            mkdir -p "$SKILLS_DIR"
+            for f in "$BACKUP_DIR/skills"/*.md; do
+                [ -f "$f" ] && cp "$f" "$SKILLS_DIR/$(basename "$f")" && ok "Restaurado skill: $(basename "$f")"
+            done
+        else
+            info "No había skills previos. Skills de Team Brain eliminados."
+        fi
+
+        # -- 5. Restaurar CLAUDE.md ------------------------------
+        step "Restaurando CLAUDE.md ───────────────────────────────────"
+        if [ -f "$BACKUP_DIR/CLAUDE.md" ]; then
+            cp "$BACKUP_DIR/CLAUDE.md" "$HOME/.claude/CLAUDE.md"
+            ok "CLAUDE.md restaurado desde backup."
+        else
+            [ -f "$HOME/.claude/CLAUDE.md" ] && rm -f "$HOME/.claude/CLAUDE.md" && ok "CLAUDE.md eliminado (no existía antes de instalar)." || info "CLAUDE.md no encontrado. Nada que restaurar."
+        fi
+
+        # -- Eliminar directorio de backup -----------------------
+        rm -rf "$BACKUP_DIR"
+        ok "Backup eliminado."
+
+    else
+        # ── Sin backup: eliminar solo entradas de Team Brain ────
+        info "No se encontró backup previo."
+        info "Se eliminan solo las entradas de Team Brain."
+
+        # -- 2. Eliminar MCPs de .claude.json --------------------
+        step "Eliminando MCPs de Claude Code ────────────────────────"
+        CLAUDE_JSON="$HOME/.claude.json"
+        if [ -f "$CLAUDE_JSON" ]; then
+            node -e "
+const fs = require('fs');
+const path = '$CLAUDE_JSON';
+let cfg = {};
+try { cfg = JSON.parse(fs.readFileSync(path, 'utf8')); } catch(e) {}
+const mcps = ['team-brain', 'context7', 'sequential-thinking'];
+if (cfg.mcpServers) {
+    mcps.forEach(m => {
+        if (cfg.mcpServers[m]) { delete cfg.mcpServers[m]; console.log('  [OK] MCP ' + m + ' eliminado.'); }
+        else { console.log('  [INFO] MCP ' + m + ' no estaba registrado.'); }
+    });
+} else { console.log('  [INFO] No había MCPs registrados.'); }
+fs.writeFileSync(path, JSON.stringify(cfg, null, 2));
+" 2>/dev/null || warn "No se pudo modificar .claude.json"
+        else
+            info ".claude.json no encontrado."
+        fi
+
+        # -- 3. Eliminar plugins de settings.json ----------------
+        step "Eliminando plugins de Claude Code ─────────────────────"
+        SETTINGS_FILE="$HOME/.claude/settings.json"
+        if [ -f "$SETTINGS_FILE" ]; then
+            node -e "
+const fs = require('fs');
+const path = '$SETTINGS_FILE';
+let cfg = {};
+try { cfg = JSON.parse(fs.readFileSync(path, 'utf8')); } catch(e) {}
+const plugins = [
+    'superpowers@claude-plugins-official','context-mode@context-mode',
+    'context7@claude-plugins-official','code-simplifier@claude-plugins-official',
+    'code-review@claude-plugins-official','pr-review-toolkit@claude-plugins-official',
+    'commit-commands@claude-plugins-official','feature-dev@claude-plugins-official',
+    'claude-md-management@claude-plugins-official'
+];
+if (cfg.enabledPlugins) {
+    plugins.forEach(p => { if (p in cfg.enabledPlugins) { delete cfg.enabledPlugins[p]; console.log('  [OK] Plugin ' + p + ' eliminado.'); } });
+}
+if (cfg.extraKnownMarketplaces && cfg.extraKnownMarketplaces['context-mode']) {
+    delete cfg.extraKnownMarketplaces['context-mode'];
+    console.log('  [OK] Marketplace context-mode eliminado.');
+}
+fs.writeFileSync(path, JSON.stringify(cfg, null, 2));
+console.log('  [OK] settings.json actualizado.');
+" 2>/dev/null || warn "No se pudo modificar settings.json"
+        else
+            info "settings.json no encontrado."
+        fi
+
+        # -- 4. Eliminar skills de Team Brain --------------------
+        step "Eliminando skills locales ──────────────────────────────"
+        SKILLS_DIR="$HOME/.claude/skills"
+        for f in "${SKILL_FILES[@]}"; do
+            [ -f "$SKILLS_DIR/$f" ] && rm -f "$SKILLS_DIR/$f" && ok "Eliminado: $f" || true
+        done
+
+        # -- 5. Restaurar o eliminar CLAUDE.md -------------------
+        step "Restaurando CLAUDE.md ───────────────────────────────────"
+        CLAUDE_MD="$HOME/.claude/CLAUDE.md"
+        CLAUDE_BAK="$HOME/.claude/CLAUDE.md.bak"
+        if [ -f "$CLAUDE_BAK" ]; then
+            cp "$CLAUDE_BAK" "$CLAUDE_MD" && rm -f "$CLAUDE_BAK"
+            ok "CLAUDE.md restaurado desde backup (.bak)."
+        elif [ -f "$CLAUDE_MD" ]; then
+            rm -f "$CLAUDE_MD"
+            ok "CLAUDE.md eliminado."
+        else
+            info "CLAUDE.md no encontrado. Nada que restaurar."
+        fi
+    fi
+
+    echo
+    echo -e "${GREEN}=====================================================${NC}"
+    echo -e "${GREEN}  Team Brain desinstalado correctamente.${NC}"
+    echo -e "${GREEN}=====================================================${NC}"
+    echo
+    echo "  Docker, Node.js y Claude Code permanecen instalados."
+    echo "  Reinicia Claude Code para que los cambios tomen efecto."
+    echo
+    exit 0
+fi
+
 
 # -─ Banner ────────────────────────────────────────────────────
 echo
@@ -52,6 +231,54 @@ if [ -f "docker-compose.yml" ]; then
     fi
 fi
 info "Password Neo4j detectada desde docker-compose.yml: $NEO4J_PASS"
+
+# =============================================================
+# PASO 0b: Backup de configuracion del usuario
+# (se ejecuta una sola vez; si ya existe backup, se omite)
+# =============================================================
+step "PASO 0b: Backup de configuracion del usuario ──────────"
+
+BACKUP_DIR="$HOME/.claude/team-brain-backup"
+
+if [ -d "$BACKUP_DIR" ]; then
+    info "Backup previo detectado en $BACKUP_DIR"
+    info "Se omite para preservar el estado original del usuario."
+else
+    mkdir -p "$BACKUP_DIR"
+
+    if [ -f "$HOME/.claude.json" ]; then
+        cp "$HOME/.claude.json" "$BACKUP_DIR/claude.json"
+        ok "Backup: .claude.json"
+    else
+        info ".claude.json no existe aún. Se omite."
+    fi
+
+    if [ -f "$HOME/.claude/settings.json" ]; then
+        cp "$HOME/.claude/settings.json" "$BACKUP_DIR/settings.json"
+        ok "Backup: settings.json"
+    else
+        info "settings.json no existe aún. Se omite."
+    fi
+
+    if [ -f "$HOME/.claude/CLAUDE.md" ]; then
+        cp "$HOME/.claude/CLAUDE.md" "$BACKUP_DIR/CLAUDE.md"
+        ok "Backup: CLAUDE.md"
+    else
+        info "CLAUDE.md no existe aún. Se omite."
+    fi
+
+    SKILLS_SRC="$HOME/.claude/skills"
+    if [ -d "$SKILLS_SRC" ]; then
+        mkdir -p "$BACKUP_DIR/skills"
+        for f in "$SKILLS_SRC"/*.md; do
+            [ -f "$f" ] && cp "$f" "$BACKUP_DIR/skills/$(basename "$f")" && ok "Backup skill: $(basename "$f")"
+        done
+    else
+        info "Directorio skills no existe aún. Se omite."
+    fi
+
+    ok "Backup guardado en: $BACKUP_DIR"
+fi
 
 # =============================================================
 # PASO 1: Verificar prerequisitos

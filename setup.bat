@@ -16,6 +16,8 @@ REM =============================================================
 
 setlocal EnableDelayedExpansion
 
+if /i "%~1"=="--uninstall" goto UNINSTALL
+
 echo.
 echo =====================================================
 echo   Team Brain -- Instalador unificado
@@ -35,6 +37,57 @@ REM Limpiar espacios y caracteres extra
 for /f "tokens=* delims= " %%a in ("!NEO4J_PASS!") do set NEO4J_PASS=%%a
 
 echo [Config] Password Neo4j detectada desde docker-compose.yml: !NEO4J_PASS!
+echo.
+
+REM =============================================================
+REM PASO 0b: Backup de configuracion del usuario
+REM (se ejecuta una sola vez; si ya existe backup, se omite)
+REM =============================================================
+echo -- PASO 0b: Backup de configuracion del usuario ------------
+echo.
+
+set "BACKUP_DIR=%USERPROFILE%\.claude\team-brain-backup"
+
+if exist "!BACKUP_DIR!\" (
+    echo   [INFO] Backup previo detectado en !BACKUP_DIR!
+    echo          Se omite para preservar el estado original del usuario.
+) else (
+    mkdir "!BACKUP_DIR!" >nul 2>&1
+
+    if exist "%USERPROFILE%\.claude.json" (
+        copy /y "%USERPROFILE%\.claude.json" "!BACKUP_DIR!\claude.json" >nul
+        echo   [OK] Backup: .claude.json
+    ) else (
+        echo   [INFO] .claude.json no existe aun. Se omite.
+    )
+
+    if exist "%USERPROFILE%\.claude\settings.json" (
+        copy /y "%USERPROFILE%\.claude\settings.json" "!BACKUP_DIR!\settings.json" >nul
+        echo   [OK] Backup: settings.json
+    ) else (
+        echo   [INFO] settings.json no existe aun. Se omite.
+    )
+
+    if exist "%USERPROFILE%\.claude\CLAUDE.md" (
+        copy /y "%USERPROFILE%\.claude\CLAUDE.md" "!BACKUP_DIR!\CLAUDE.md" >nul
+        echo   [OK] Backup: CLAUDE.md
+    ) else (
+        echo   [INFO] CLAUDE.md no existe aun. Se omite.
+    )
+
+    set "SKILLS_SRC=%USERPROFILE%\.claude\skills"
+    if exist "!SKILLS_SRC!\" (
+        mkdir "!BACKUP_DIR!\skills" >nul 2>&1
+        for %%f in ("!SKILLS_SRC!\*.md") do (
+            copy /y "%%f" "!BACKUP_DIR!\skills\%%~nxf" >nul 2>&1
+            echo   [OK] Backup skill: %%~nxf
+        )
+    ) else (
+        echo   [INFO] Directorio skills no existe aun. Se omite.
+    )
+
+    echo   [OK] Backup guardado en: !BACKUP_DIR!
+)
 echo.
 
 REM =============================================================
@@ -281,6 +334,169 @@ echo     windows\brain.bat status  ^<- ver estado
 echo =====================================================
 echo.
 goto END_SUCCESS
+
+:UNINSTALL
+echo.
+echo =====================================================
+echo   Team Brain -- Desinstalador
+echo   KLAP BYSF Knowledge Graph Uninstall
+echo =====================================================
+echo.
+echo   Este proceso eliminara:
+echo     - Contenedor Neo4j y sus datos (docker compose down -v)
+echo     - MCPs: team-brain, context7, sequential-thinking
+echo     - Plugins de Claude Code
+echo     - Skills locales de %USERPROFILE%\.claude\skills\
+echo     - CLAUDE.md de %USERPROFILE%\.claude\
+echo.
+echo   Los programas instalados (Docker, Node.js, Claude Code)
+echo   NO seran desinstalados.
+echo.
+set /p CONFIRM="   Confirmar desinstalacion? [s/N]: "
+if /i not "!CONFIRM!"=="s" (
+    echo.
+    echo   Desinstalacion cancelada.
+    echo.
+    endlocal
+    exit /b 0
+)
+echo.
+
+REM -- 1. Detener y eliminar Neo4j + datos -----------------------
+echo -- Deteniendo Neo4j y eliminando datos ---------------------
+docker compose down -v >nul 2>&1
+if %ERRORLEVEL% equ 0 (
+    echo   [OK] Contenedor Neo4j detenido y datos eliminados.
+) else (
+    echo   [WARN] No se pudo detener Neo4j o ya estaba detenido.
+)
+echo.
+
+set "BACKUP_DIR=%USERPROFILE%\.claude\team-brain-backup"
+
+if exist "!BACKUP_DIR!\" (
+    REM ── Restauracion completa desde backup ──────────────────────
+
+    REM -- 2. Restaurar .claude.json --------------------------------
+    echo -- Restaurando .claude.json --------------------------------
+    if exist "!BACKUP_DIR!\claude.json" (
+        copy /y "!BACKUP_DIR!\claude.json" "%USERPROFILE%\.claude.json" >nul
+        echo   [OK] .claude.json restaurado desde backup.
+    ) else (
+        if exist "%USERPROFILE%\.claude.json" (
+            del /q "%USERPROFILE%\.claude.json" >nul
+            echo   [OK] .claude.json eliminado (no existia antes de instalar).
+        ) else (
+            echo   [INFO] .claude.json no encontrado. Nada que restaurar.
+        )
+    )
+    echo.
+
+    REM -- 3. Restaurar settings.json --------------------------------
+    echo -- Restaurando settings.json --------------------------------
+    if exist "!BACKUP_DIR!\settings.json" (
+        copy /y "!BACKUP_DIR!\settings.json" "%USERPROFILE%\.claude\settings.json" >nul
+        echo   [OK] settings.json restaurado desde backup.
+    ) else (
+        if exist "%USERPROFILE%\.claude\settings.json" (
+            del /q "%USERPROFILE%\.claude\settings.json" >nul
+            echo   [OK] settings.json eliminado (no existia antes de instalar).
+        ) else (
+            echo   [INFO] settings.json no encontrado. Nada que restaurar.
+        )
+    )
+    echo.
+
+    REM -- 4. Restaurar skills --------------------------------------
+    echo -- Restaurando skills --------------------------------------
+    set "SKILLS_DIR=%USERPROFILE%\.claude\skills"
+    for %%f in (kafka-config.md kafka-listener.md processor.md repository.md webclient.md exceptions.md testing.md openapi.md skill-registry.md sdd-microservice.md sdd-checklist.md) do (
+        del /q "!SKILLS_DIR!\%%f" >nul 2>&1
+    )
+    if exist "!BACKUP_DIR!\skills\" (
+        if not exist "!SKILLS_DIR!\" mkdir "!SKILLS_DIR!"
+        for %%f in ("!BACKUP_DIR!\skills\*.md") do (
+            copy /y "%%f" "!SKILLS_DIR!\%%~nxf" >nul 2>&1
+            echo   [OK] Restaurado skill: %%~nxf
+        )
+    ) else (
+        echo   [INFO] No habia skills previos. Skills de Team Brain eliminados.
+    )
+    echo.
+
+    REM -- 5. Restaurar CLAUDE.md ------------------------------------
+    echo -- Restaurando CLAUDE.md ------------------------------------
+    if exist "!BACKUP_DIR!\CLAUDE.md" (
+        copy /y "!BACKUP_DIR!\CLAUDE.md" "%USERPROFILE%\.claude\CLAUDE.md" >nul
+        echo   [OK] CLAUDE.md restaurado desde backup.
+    ) else (
+        if exist "%USERPROFILE%\.claude\CLAUDE.md" (
+            del /q "%USERPROFILE%\.claude\CLAUDE.md" >nul
+            echo   [OK] CLAUDE.md eliminado (no existia antes de instalar).
+        ) else (
+            echo   [INFO] CLAUDE.md no encontrado. Nada que restaurar.
+        )
+    )
+    echo.
+
+    REM -- Eliminar directorio de backup ----------------------------
+    rmdir /s /q "!BACKUP_DIR!" >nul 2>&1
+    echo   [OK] Backup eliminado.
+    echo.
+
+) else (
+    REM ── Sin backup: eliminar solo entradas de Team Brain ────────
+    echo   [INFO] No se encontro backup previo.
+    echo          Se eliminan solo las entradas de Team Brain.
+    echo.
+
+    REM -- 2. Eliminar MCPs de .claude.json -------------------------
+    echo -- Eliminando MCPs de Claude Code --------------------------
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "$cf='%USERPROFILE%\.claude.json'; if(Test-Path $cf){ try{ $cfg=Get-Content $cf -Raw|ConvertFrom-Json -AsHashtable }catch{ $cfg=@{} }; if($cfg.ContainsKey('mcpServers')){ @('team-brain','context7','sequential-thinking') | ForEach-Object { if($cfg['mcpServers'].ContainsKey($_)){ $cfg['mcpServers'].Remove($_); Write-Host \"  [OK] MCP '$_' eliminado.\" } else { Write-Host \"  [INFO] MCP '$_' no estaba registrado.\" } }; $cfg|ConvertTo-Json -Depth 10|Set-Content $cf -Encoding UTF8 } else { Write-Host '  [INFO] No habia MCPs registrados.' } } else { Write-Host '  [INFO] .claude.json no encontrado.' }"
+    echo.
+
+    REM -- 3. Eliminar plugins de settings.json ----------------------
+    echo -- Eliminando plugins de Claude Code -----------------------
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "$s='%USERPROFILE%\.claude\settings.json'; if(Test-Path $s){ try{ $cfg=Get-Content $s -Raw|ConvertFrom-Json -AsHashtable }catch{ $cfg=@{} }; $plugins=@('superpowers@claude-plugins-official','context-mode@context-mode','context7@claude-plugins-official','code-simplifier@claude-plugins-official','code-review@claude-plugins-official','pr-review-toolkit@claude-plugins-official','commit-commands@claude-plugins-official','feature-dev@claude-plugins-official','claude-md-management@claude-plugins-official'); if($cfg.ContainsKey('enabledPlugins')){ $plugins | ForEach-Object { if($cfg['enabledPlugins'].ContainsKey($_)){ $cfg['enabledPlugins'].Remove($_); Write-Host \"  [OK] Plugin '$_' eliminado.\" } } }; if($cfg.ContainsKey('extraKnownMarketplaces') -and $cfg['extraKnownMarketplaces'].ContainsKey('context-mode')){ $cfg['extraKnownMarketplaces'].Remove('context-mode'); Write-Host '  [OK] Marketplace context-mode eliminado.' }; $cfg|ConvertTo-Json -Depth 10|Set-Content $s -Encoding UTF8; Write-Host '  [OK] settings.json actualizado.' } else { Write-Host '  [INFO] settings.json no encontrado.' }"
+    echo.
+
+    REM -- 4. Eliminar skills de Team Brain --------------------------
+    echo -- Eliminando skills locales --------------------------------
+    set "SKILLS_DIR=%USERPROFILE%\.claude\skills"
+    for %%f in (kafka-config.md kafka-listener.md processor.md repository.md webclient.md exceptions.md testing.md openapi.md skill-registry.md sdd-microservice.md sdd-checklist.md) do (
+        if exist "!SKILLS_DIR!\%%f" (
+            del /q "!SKILLS_DIR!\%%f" >nul 2>&1
+            echo   [OK] Eliminado: %%f
+        )
+    )
+    echo.
+
+    REM -- 5. Restaurar o eliminar CLAUDE.md -------------------------
+    echo -- Restaurando CLAUDE.md ------------------------------------
+    set "CLAUDE_MD=%USERPROFILE%\.claude\CLAUDE.md"
+    set "CLAUDE_BAK=%USERPROFILE%\.claude\CLAUDE.md.bak"
+    if exist "!CLAUDE_BAK!" (
+        copy /y "!CLAUDE_BAK!" "!CLAUDE_MD!" >nul
+        del /q "!CLAUDE_BAK!" >nul
+        echo   [OK] CLAUDE.md restaurado desde backup (.bak).
+    ) else if exist "!CLAUDE_MD!" (
+        del /q "!CLAUDE_MD!" >nul
+        echo   [OK] CLAUDE.md eliminado.
+    ) else (
+        echo   [INFO] CLAUDE.md no encontrado. Nada que restaurar.
+    )
+    echo.
+)
+
+echo =====================================================
+echo   Team Brain desinstalado correctamente.
+echo =====================================================
+echo.
+echo   Docker, Node.js y Claude Code permanecen instalados.
+echo   Reinicia Claude Code para que los cambios tomen efecto.
+echo.
+endlocal
+exit /b 0
 
 :END_FAILURE
 echo.

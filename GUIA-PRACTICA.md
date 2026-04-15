@@ -40,16 +40,43 @@ chmod +x setup.sh && ./setup.sh
 ```
 
 El instalador ejecuta en orden:
-1. Verifica prerequisitos (Docker, Node.js >= 18, Claude Code, curl)
-2. Levanta Neo4j
-3. Inicializa la base de datos
-4. Carga la arquitectura de referencia KLAP BYSF
-5. Registra el MCP `team-brain` en Claude Code (`--scope user`)
-6. Registra el MCP `context7` (documentación en tiempo real)
-7. Instala los skill files en `~/.claude/skills/`
-8. Copia `CLAUDE.md` al perfil del usuario
+1. Hace backup de la configuración actual del usuario (`.claude.json`, `settings.json`, skills, `CLAUDE.md`) en `~/.claude/team-brain-backup/`
+2. Verifica prerequisitos (Docker, Node.js >= 18, Claude Code, curl)
+3. Levanta Neo4j
+4. Inicializa la base de datos
+5. Carga la arquitectura de referencia KLAP BYSF
+6. Registra el MCP `team-brain` en Claude Code (`--scope user`)
+7. Registra el MCP `context7` (documentación en tiempo real)
+8. Instala los skill files en `~/.claude/skills/`
+9. Copia `CLAUDE.md` al perfil del usuario
 
-> Si preferís control paso a paso, seguí la sección **Setup manual** más abajo.
+> Si prefieres control paso a paso, sigue la sección **Setup manual** más abajo.
+
+---
+
+## Desinstalar
+
+Revierte la instalación y restaura la configuración del usuario al estado previo:
+
+**Windows (CMD)**
+```bat
+setup.bat --uninstall
+```
+
+**Linux / macOS**
+```bash
+./setup.sh --uninstall
+```
+
+El desinstalador:
+1. Pide confirmación antes de proceder
+2. Detiene Neo4j y elimina sus datos (`docker compose down -v`)
+3. Restaura `.claude.json`, `settings.json`, skills y `CLAUDE.md` desde el backup creado durante la instalación
+4. Elimina el directorio de backup `~/.claude/team-brain-backup/`
+
+> **Sin backup previo:** si el backup no existe (ej. instalación manual), el desinstalador elimina solo las entradas de Team Brain sin tocar el resto de la configuración.
+
+> **Docker, Node.js y Claude Code no se desinstalan** — son prerequisitos del usuario, no del ecosistema.
 
 ---
 
@@ -311,7 +338,7 @@ Deberías ver ~24 nodos conectados.
 
 ### PASO 8 — Probar en Claude Code
 
-Abrí Claude Code en cualquier proyecto y escribí:
+Abre Claude Code en cualquier proyecto y escribe:
 
 ```
 ¿Qué sabes del equipo?
@@ -325,12 +352,14 @@ Claude debería responder consultando Neo4j y luego preguntar en qué proyecto v
 
 | Paso | CMD | PowerShell | Linux/macOS | ¿Solo 1 vez? |
 |------|-----|------------|-------------|-------------|
+| 0b — Backup config usuario | *(automático en setup.bat)* | *(automático en setup.ps1)* | *(automático en setup.sh)* | Sí |
 | 1 — Levantar Neo4j | `brain.bat up` | `.\brain.ps1 up` | `docker compose up -d` | No |
 | 2 — Init DB | `init-brain.bat` | `.\init-brain.ps1` | `./init-brain.sh` | Sí |
 | 3 — Registrar MCPs | `brain.bat mcp` | `.\brain.ps1 mcp` | ver arriba | Sí |
 | 4 — Cargar arquitectura | `enrich-brain.bat` | `.\enrich-brain.bat` | `./enrich-brain.sh` | Sí |
 | 5 — Instalar skills | `install-skills.bat` | `.\install-skills.ps1` | `./install-skills.sh` | Sí |
 | 6 — Activar CLAUDE.md | `copy CLAUDE.md ...` | `Copy-Item ...` | `cp CLAUDE.md ...` | Sí |
+| **Desinstalar** | `setup.bat --uninstall` | `.\setup.ps1 --uninstall` | `./setup.sh --uninstall` | — |
 
 ---
 
@@ -391,7 +420,7 @@ Bypass para commits urgentes: `git commit --no-verify`
 
 ### Context7 — Documentación en tiempo real
 
-Agregá `use context7` a cualquier prompt para obtener la documentación de la versión
+Agrega `use context7` a cualquier prompt para obtener la documentación de la versión
 exacta de las librerías del stack:
 
 ```

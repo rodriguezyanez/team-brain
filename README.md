@@ -35,7 +35,8 @@ team-brain/
 │                                         %USERPROFILE%\.claude\CLAUDE.md  (Windows)
 │
 │── Windows ──────────────────────────────────────────────────────────────────
-├── setup.bat / setup.ps1    Instalador unificado — setup completo en un comando
+├── setup.bat / setup.ps1    Instalador/desinstalador — setup completo en un comando
+│                            setup.bat --uninstall para desinstalar y restaurar config
 ├── brain.bat / brain.ps1    Operaciones diarias: up, down, restart, status,
 │                            logs, browser, mcp, update
 ├── brain-update.bat/.ps1    Sincronización incremental de Neo4j (preserva memoria)
@@ -79,11 +80,27 @@ setup.bat
 chmod +x setup.sh && ./setup.sh
 ```
 
-El instalador orquesta todo automáticamente: verifica prerequisitos, levanta Neo4j,
-inicializa la base de datos, carga la arquitectura KLAP BYSF, registra el MCP
-y copia el CLAUDE.md al perfil del usuario.
+El instalador orquesta todo automáticamente: hace backup de la configuración existente
+del usuario, verifica prerequisitos, levanta Neo4j, inicializa la base de datos,
+carga la arquitectura KLAP BYSF, registra el MCP y copia el CLAUDE.md al perfil.
 
 Ver [`GUIA-PRACTICA.md`](GUIA-PRACTICA.md) para el wizard completo.
+
+### Desinstalar
+
+**Windows (CMD)**
+```bat
+setup.bat --uninstall
+```
+
+**Linux / macOS**
+```bash
+./setup.sh --uninstall
+```
+
+El desinstalador detiene Neo4j y elimina sus datos, y restaura la configuración de
+Claude Code (`~/.claude.json`, `settings.json`, skills, `CLAUDE.md`) al estado exacto
+previo a la instalación usando el backup creado por el instalador.
 
 ### Paso a paso (manual / Linux / macOS)
 
