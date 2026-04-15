@@ -108,6 +108,47 @@ Cuando el dev trabaja con APIs del stack, agregar `use context7` al prompt para 
 
 ---
 
+## Fallback de memoria local (cuando Neo4j no está disponible)
+
+Cuando `mcp__team-brain__create_memory` o `mcp__team-brain__create_connection` falla por Neo4j no disponible:
+
+### Protocolo de escritura local
+
+1. Avisar: "Neo4j no disponible — guardando memoria localmente para sync posterior"
+2. Usar la herramienta **Write/Edit** para appender al archivo de cola:
+   - Windows: `%USERPROFILE%\.claude\pending-memories.jsonl`
+   - Linux/macOS: `~/.claude/pending-memories.jsonl`
+3. Formato de la entrada (una línea JSON):
+
+```jsonl
+{"timestamp":"<ISO8601>","type":"memory","name":"<nombre>","entityType":"<tipo>","observations":["<obs1>","<obs2>"]}
+{"timestamp":"<ISO8601>","type":"connection","from":"<entidad-origen>","to":"<entidad-destino>","relationType":"<TIPO_REL>"}
+```
+
+4. Confirmar: "✅ Guardado localmente. Ejecutá `brain.bat sync` cuando Neo4j vuelva a estar disponible."
+
+### Protocolo de inicio de sesión — chequeo de pendientes
+
+Al iniciar sesión, **antes de preguntar el proyecto**, verificar si existe el archivo de cola:
+
+```
+Windows: %USERPROFILE%\.claude\pending-memories.jsonl
+Linux:   ~/.claude/pending-memories.jsonl
+```
+
+Si existe y tiene contenido → avisar:
+
+> "⚠️ Hay memorias pendientes de sincronizar con Neo4j. Ejecutá `brain.bat sync` (o `brain-sync.sh`) para volcarlas antes de continuar."
+
+Luego continuar con el flujo normal de selección de proyecto.
+
+### Regla de integridad
+
+- Siempre intentar Neo4j primero. Solo usar el fallback local si el MCP falla.
+- No perder memorias silenciosamente — si falla el MCP y no se puede escribir el fallback, avisar explícitamente al dev.
+
+---
+
 ## Skill registry local (fallback cuando Neo4j no está disponible)
 
 Si el MCP `team-brain` no responde o Neo4j no está corriendo, usa los skill files locales como fuente de conocimiento del equipo. Estos archivos viven en `~/.claude/skills/` (Linux/macOS) o `%USERPROFILE%\.claude\skills\` (Windows).

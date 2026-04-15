@@ -10,6 +10,7 @@ REM   brain.bat logs     -> ver logs en vivo
 REM   brain.bat browser  -> abrir Neo4j Browser en Chrome
 REM   brain.bat mcp      -> registrar MCP team-brain y Context7 en Claude Code
 REM   brain.bat update   -> sincronizacion incremental de Neo4j (preserva memoria)
+REM   brain.bat sync     -> sincronizar memorias pendientes locales con Neo4j
 REM =============================================================
 
 setlocal
@@ -25,6 +26,7 @@ if /i "%ACTION%"=="logs"    goto DO_LOGS
 if /i "%ACTION%"=="browser" goto DO_BROWSER
 if /i "%ACTION%"=="mcp"     goto DO_MCP
 if /i "%ACTION%"=="update"  goto DO_UPDATE
+if /i "%ACTION%"=="sync"    goto DO_SYNC
 goto SHOW_HELP
 
 :DO_UP
@@ -110,6 +112,17 @@ if exist brain-update.bat (
 )
 goto END
 
+:DO_SYNC
+echo.
+echo Sincronizando memorias pendientes locales con Neo4j...
+echo.
+if exist brain-sync.bat (
+    call brain-sync.bat
+) else (
+    echo [ERROR] brain-sync.bat no encontrado en el directorio actual.
+)
+goto END
+
 :SHOW_HELP
 echo.
 echo Team Brain -- Comandos disponibles:
@@ -122,6 +135,7 @@ echo   brain.bat logs     Ver logs en vivo
 echo   brain.bat browser  Abrir Neo4j Browser
 echo   brain.bat mcp      Registrar MCPs ^(team-brain + Context7^) en Claude Code
 echo   brain.bat update   Sincronizar arquitectura en Neo4j ^(preserva memoria^)
+echo   brain.bat sync     Sincronizar memorias pendientes locales con Neo4j
 echo.
 
 :END

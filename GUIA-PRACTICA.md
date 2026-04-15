@@ -135,14 +135,14 @@ El instalador ejecuta en orden:
 
 | Archivo | Descripción |
 |---------|-------------|
-| `CLAUDE.md` | System prompt del equipo. Define el protocolo de selección de proyecto, los 4 niveles de asistencia, JavaDoc obligatorio, flujo SDD, reglas de memoria y modo onboarding. |
+| `CLAUDE.md` | System prompt del equipo. Define el protocolo de selección de proyecto, JavaDoc obligatorio, flujo SDD y reglas de memoria. Asume siempre perfil senior. |
 
 ### Documentación
 
 | Archivo | Descripción |
 |---------|-------------|
 | `CONTEXT.md` | Estado del proyecto, arquitectura del ecosistema y comandos de referencia rápida |
-| `ONBOARDING.md` | Guía completa del ecosistema para nuevos integrantes |
+| `ONBOARDING.md` | Guía del ecosistema para nuevos integrantes (perfil senior) |
 | `GUIA-PRACTICA.md` | Este archivo |
 | `README.md` | Documentación general |
 | `ENRICHMENT-PLAN.md` | Plan de enriquecimiento del ecosistema (7/7 fases completadas) |
@@ -341,6 +341,7 @@ brain.bat up       ← levantar Neo4j al empezar el día
 brain.bat down     ← detener al terminar (datos persisten)
 brain.bat status   ← verificar si está corriendo
 brain.bat update   ← sincronizar arquitectura si cambió ARQUITECTURA_REFERENCIA.md
+brain.bat sync     ← sincronizar memorias pendientes locales con Neo4j
 ```
 
 ---
@@ -413,6 +414,31 @@ Abrir en Obsidian: **Archivo → Abrir vault → seleccionar `vault/`**.
 
 ---
 
+### Memoria local cuando Neo4j no está disponible
+
+Si Neo4j no está corriendo durante una sesión de trabajo, Claude guarda automáticamente las memorias en una cola local:
+
+- **Windows:** `%USERPROFILE%\.claude\pending-memories.jsonl`
+- **Linux/macOS:** `~/.claude/pending-memories.jsonl`
+
+Cuando Neo4j vuelva a estar disponible, sincronizar la cola:
+
+```bat
+brain.bat sync
+```
+
+```powershell
+.\brain.ps1 sync
+```
+
+```bash
+./brain-sync.sh
+```
+
+El script procesa cada entrada, las empuja a Neo4j y limpia las que fueron exitosas. Las entradas fallidas se conservan en el archivo para el próximo intento.
+
+---
+
 ### Actualizar el Standard
 
 Cuando cambie `ARQUITECTURA_REFERENCIA.md`:
@@ -436,7 +462,7 @@ Si otro dev se conecta a un Neo4j ya inicializado (red local o VPN), solo necesi
 - **PASO 5** — instalar los skill files locales
 - **PASO 6** — copiar el CLAUDE.md
 
-Al abrir Claude Code, escribir `onboarding` para un recorrido guiado del ecosistema.
+Consultar `ONBOARDING.md` para el recorrido completo del ecosistema.
 
 ---
 
