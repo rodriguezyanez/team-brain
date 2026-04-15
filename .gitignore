@@ -1,8 +1,11 @@
 data/
 logs/
+docs/
+vault/
+
 *.log
 .claude/settings.local.json
-vault/
+
 Convenciones
 DB
 Dependencias
@@ -12,4 +15,5 @@ Principios
 Stack
 Templates
 Topics
+
 
