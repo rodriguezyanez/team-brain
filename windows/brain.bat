@@ -105,10 +105,10 @@ echo.
 echo Sincronizando arquitectura de referencia en Neo4j...
 echo (Preserva decisiones, bugs, patterns y memoria del equipo)
 echo.
-if exist brain-update.bat (
-    call brain-update.bat
+if exist "%~dp0brain-update.bat" (
+    call "%~dp0brain-update.bat"
 ) else (
-    echo [ERROR] brain-update.bat no encontrado en el directorio actual.
+    echo [ERROR] brain-update.bat no encontrado en windows\.
 )
 goto END
 
@@ -116,10 +116,10 @@ goto END
 echo.
 echo Sincronizando memorias pendientes locales con Neo4j...
 echo.
-if exist brain-sync.bat (
-    call brain-sync.bat
+if exist "%~dp0brain-sync.bat" (
+    call "%~dp0brain-sync.bat"
 ) else (
-    echo [ERROR] brain-sync.bat no encontrado en el directorio actual.
+    echo [ERROR] brain-sync.bat no encontrado en windows\.
 )
 goto END
 

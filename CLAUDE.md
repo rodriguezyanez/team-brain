@@ -45,7 +45,7 @@ Avisar al dev que el proyecto no está en la memoria del equipo y proponer usar 
 
 > "No encontré '[nombre]' en la memoria del equipo. Antes de comenzar a implementar, te propongo usar el flujo SDD para explorar y entender el dominio. Esto nos va a permitir registrar el proyecto correctamente y planificar la implementación con el estándar del equipo."
 >
-> "Cuando estés listo, escribí:
+> "Cuando estés listo, escribe:
 > `sdd: [descripción del proyecto o funcionalidad a implementar]`"
 
 **¿Por qué SDD y no registro manual?**

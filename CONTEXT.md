@@ -33,29 +33,56 @@ Dev 3 (Claude Code)
 ```
 team-brain/
 │
-├── docker-compose.yml       Neo4j 5.18 Community con 4 volúmenes persistentes
-│                            Puerto 7474 (browser) y 7687 (bolt)
-│                            Password: team-brain-2025
+├── docker-compose.yml         Neo4j 5.18 Community — puertos 7474 y 7687
+│                              4 volúmenes persistentes (datos sobreviven a reinicios)
 │
-├── CLAUDE.md                System prompt para Claude Code
-│                            Instalar en: %USERPROFILE%\.claude\CLAUDE.md
+├── CLAUDE.md                  System prompt del equipo para Claude Code
+│                              Instalar en: %USERPROFILE%\.claude\CLAUDE.md (Windows)
+│                                           ~/.claude/CLAUDE.md (Linux/macOS)
 │
-├── ONBOARDING.md            Guía del sistema de niveles para compartir con el equipo
+│── Documentación ─────────────────────────────────────────────────────
+├── README.md                  Documentación general y referencia rápida
+├── GUIA-PRACTICA.md           Wizard de instalación paso a paso (todos los SO)
+├── ONBOARDING.md              Guía del ecosistema para nuevos integrantes
+├── CONTEXT.md                 Este archivo — estado actual y referencia rápida
 │
-│── Linux / macOS ───────────────────────────────────────────────
-├── setup.sh                 Instalador unificado: setup completo en un comando
-├── init-brain.sh            Inicialización de Neo4j (ejecutar UNA vez)
-├── backup.sh                Backup y restore de volúmenes
+│── Windows ────────────────────────────────────────────────────────────
+├── setup.bat                  Instalador/desinstalador unificado
+│                              setup.bat --uninstall para desinstalar
+├── brain.bat                  Operaciones diarias: up, down, status, logs, browser
+├── init-brain.bat             Inicialización de Neo4j (ejecutar UNA vez)
+├── enrich-brain.bat           Carga arquitectura de referencia KLAP BYSF
+├── brain-update.bat           Sincronización incremental (preserva memoria acumulada)
+├── install-skills.bat         Instala skill files en %USERPROFILE%\.claude\skills\
+├── install-hooks.bat          Instala hook pre-commit Guardian Angel en un proyecto
+├── brain-sync.bat             Sincroniza memorias locales pendientes con Neo4j
+├── backup.bat                 Backup y restore de volúmenes Docker
+├── export-obsidian.bat        Exporta el grafo Neo4j a archivos Markdown para Obsidian
 │
-│── Windows ─────────────────────────────────────────────────────
-├── setup.bat / setup.ps1    Instalador unificado: setup completo en un comando
-├── brain.bat / brain.ps1    Comandos rápidos: up, down, status, logs, browser, mcp
-├── init-brain.bat           Inicialización de Neo4j (ejecutar UNA vez)
-├── init-brain.ps1           Versión PowerShell
-├── backup.bat / backup.ps1  Backup y restore de volúmenes
-├── enrich-brain.bat         Carga arquitectura de referencia KLAP BYSF en Neo4j
+│── Linux / macOS ──────────────────────────────────────────────────────
+├── setup.sh                   Instalador/desinstalador unificado
+│                              ./setup.sh --uninstall para desinstalar
+├── init-brain.sh              Inicialización de Neo4j (ejecutar UNA vez)
+├── enrich-brain.sh            Carga arquitectura de referencia KLAP BYSF
+├── brain-update.sh            Sincronización incremental
+├── install-skills.sh          Instala skill files en ~/.claude/skills/
+├── install-hooks.sh           Instala hook pre-commit Guardian Angel en un proyecto
+├── brain-sync.sh              Sincroniza memorias locales pendientes con Neo4j
+├── backup.sh                  Backup y restore de volúmenes Docker
 │
-└── team-brain-guia-inicio.md  Guía completa Linux + Windows para el equipo
+│── Skills locales (fallback cuando Neo4j no está disponible) ──────────
+└── skills/                    Copiados a ~/.claude/skills/ por install-skills.*
+    ├── skill-registry.md      Índice de skills — leer primero
+    ├── kafka-config.md        Template KafkaConfig
+    ├── kafka-listener.md      Template KafkaListener
+    ├── processor.md           Template Processor/ProcessorImpl
+    ├── repository.md          Template Repository con JdbcTemplate
+    ├── webclient.md           Template WebClient
+    ├── exceptions.md          Jerarquía de excepciones
+    ├── testing.md             Tests unitarios (95%+ cobertura)
+    ├── openapi.md             OpenApiConfig
+    ├── sdd-microservice.md    Flujo SDD completo
+    └── sdd-checklist.md       Checklist de verificación por fase SDD
 ```
 
 ---
@@ -74,27 +101,10 @@ team-brain/
 - Scope: user (disponible en todos los proyectos)
 - **IMPORTANTE**: el MCP anterior `@jovanhsu/mcp-neo4j-memory-server` fue eliminado de npm. Usar siempre `@knowall-ai/mcp-neo4j-agent-memory`.
 
-### enrich-brain.bat
-- **Pendiente de ejecutar**
-- Cargará la arquitectura de referencia KLAP BYSF en Neo4j (20+ nodos)
-- Requiere Neo4j corriendo: `brain.bat up` primero
-
----
-
-## Próximo paso inmediato
-
-```bat
-REM 1. Asegurarse de que Neo4j está corriendo
-brain.bat up
-brain.bat status
-
-REM 2. Cargar la arquitectura de referencia
-enrich-brain.bat
-
-REM 3. Verificar en Neo4j Browser
-REM    http://localhost:7474
-REM    MATCH (n:Entity) RETURN n
-```
+### enrich-brain / skills / CLAUDE.md
+- Arquitectura de referencia KLAP BYSF cargada en Neo4j (20+ nodos)
+- Skill files instalados en `%USERPROFILE%\.claude\skills\`
+- `CLAUDE.md` instalado en `%USERPROFILE%\.claude\CLAUDE.md`
 
 ---
 
@@ -127,18 +137,15 @@ Standard KLAP BYSF (raíz)
 
 ---
 
-## Sistema de niveles en CLAUDE.md
+## Comportamiento de Claude
 
-El CLAUDE.md activo implementa 4 niveles de asistencia. El dev activa el suyo escribiendo `nivel: X`:
+El CLAUDE.md asume siempre perfil **senior**: directo al punto, sin explicaciones innecesarias, conocimiento profundo del stack y los patrones del equipo. No hay niveles configurables.
 
-| Nivel | Para quién | Comportamiento |
-|-------|-----------|----------------|
-| `initial` | Nuevo en Spring Boot | Explica conceptos desde cero, código completo línea por línea, ejercicios básicos |
-| `junior` | Conoce Spring, nuevo en el equipo | Explica decisiones de diseño, compara alternativas descartadas, ejercicios guiados |
-| `dev` | Conoce el stack y los patrones | Contexto de negocio cuando aplica, código limpio, nivel por defecto |
-| `senior` | Dominio completo | Directo al punto, solo menciona lo no obvio |
-
-Para activar onboarding automático: escribir `onboarding` en Claude Code.
+Protocolo de inicio de sesión:
+1. Preguntar en qué proyecto o microservicio se va a trabajar
+2. Buscar el proyecto en Neo4j (`memory_search`)
+3. Si existe: cargar contexto + reglas DO/DON'T
+4. Si no existe: proponer flujo SDD para explorarlo y registrarlo
 
 ---
 
@@ -160,17 +167,23 @@ brain.bat status         :: ver estado
 brain.bat logs           :: ver logs en vivo
 brain.bat browser        :: abrir http://localhost:7474
 
-:: Setup (ya ejecutados)
+:: Setup inicial (una sola vez por máquina)
+setup.bat                :: instalador unificado — hace todo automáticamente
 init-brain.bat           :: inicialización base (NO volver a ejecutar)
 brain.bat mcp            :: registrar team-brain + Context7 en Claude Code
+enrich-brain.bat         :: cargar arquitectura KLAP BYSF en Neo4j
+install-skills.bat       :: instalar skill files en %USERPROFILE%\.claude\skills\
+
+:: Desinstalar
+setup.bat --uninstall    :: restaura config del usuario y elimina Neo4j + datos
 
 :: Actualización incremental (cuando cambia la arquitectura de referencia)
 brain.bat update         :: sincronizar nodos Standard en Neo4j (preserva memoria)
 
-:: Setup (pendiente)
-enrich-brain.bat         :: carga completa arquitectura KLAP BYSF (primera vez)
+:: Memoria local pendiente
+brain.bat sync           :: sincronizar memorias locales con Neo4j
 
-:: Backup
+:: Backup de volúmenes Docker
 backup.bat               :: crear backup
 backup.bat list          :: listar backups
 backup.bat restore <f>   :: restaurar
