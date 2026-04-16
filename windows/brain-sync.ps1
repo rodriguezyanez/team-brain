@@ -28,8 +28,8 @@ $AuthHeader = "Basic " + [Convert]::ToBase64String($AuthBytes)
 
 function Test-Neo4j {
     try {
-        $resp = Invoke-WebRequest -Uri "$Neo4jUri/db/$Neo4jDb" `
-            -Headers @{ Authorization = $AuthHeader } `
+        # El endpoint raiz siempre responde 200 sin auth cuando Neo4j esta corriendo
+        $resp = Invoke-WebRequest -Uri "$Neo4jUri/" `
             -TimeoutSec 5 -ErrorAction Stop
         return $resp.StatusCode -lt 400
     } catch {

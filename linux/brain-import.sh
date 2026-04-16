@@ -5,12 +5,11 @@
 # Uso:
 #   ./brain-import.sh <archivo.json>
 #
-# Estrategia de merge:
-#   - Entidades: MERGE por name. Agrega solo las observaciones
-#     que no existan ya en el master. No sobreescribe nada.
-#   - Relaciones: MERGE por (from, relationType, to).
-#     Solo crea las que no existan.
-#   - entityType: se preserva el del master si ya existe.
+# Estrategia de merge (nunca sobreescribe, solo agrega):
+#   - Entidad nueva     -> se crea con todas sus propiedades
+#   - Entidad existente -> se agregan solo las propiedades (keys)
+#                         que no existan en el master
+#   - Relaciones        -> MERGE por (from, relationType, to)
 #
 # Requiere: curl, jq
 # =============================================================
@@ -24,7 +23,6 @@ AUTH_HEADER="Authorization: Basic $(echo -n "${NEO4J_USER}:${NEO4J_PASS}" | base
 
 INPUT_FILE="$1"
 
-# ── Colores ───────────────────────────────────────────────────
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 YELLOW='\033[1;33m'
@@ -52,7 +50,6 @@ fi
 
 if [[ ! -f "$INPUT_FILE" ]]; then
     echo -e "${RED}[ERROR] Archivo no encontrado: ${INPUT_FILE}${NC}"
-    echo ""
     exit 1
 fi
 
@@ -62,11 +59,11 @@ if ! jq . "$INPUT_FILE" &>/dev/null; then
 fi
 
 # ── Info del export ───────────────────────────────────────────
-EXPORTED_AT=$(jq -r '.meta.exportedAt'      "$INPUT_FILE")
-EXPORTED_BY=$(jq -r '.meta.exportedBy'      "$INPUT_FILE")
+EXPORTED_AT=$(jq -r '.meta.exportedAt'       "$INPUT_FILE")
+EXPORTED_BY=$(jq -r '.meta.exportedBy'       "$INPUT_FILE")
 EXPORTED_USER=$(jq -r '.meta.exportedByUser' "$INPUT_FILE")
-ENTITY_COUNT=$(jq -r '.meta.entityCount'    "$INPUT_FILE")
-CONN_COUNT=$(jq -r '.meta.connectionCount'  "$INPUT_FILE")
+ENTITY_COUNT=$(jq -r '.meta.entityCount'     "$INPUT_FILE")
+CONN_COUNT=$(jq -r '.meta.connectionCount'   "$INPUT_FILE")
 
 echo "   Archivo    : $INPUT_FILE"
 echo "   Exportado  : $EXPORTED_AT"
@@ -78,9 +75,8 @@ echo ""
 # ── Verificar Neo4j ───────────────────────────────────────────
 echo "   Verificando conexion con Neo4j..."
 HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-    -H "$AUTH_HEADER" \
     --connect-timeout 5 \
-    "${NEO4J_URI}/db/${NEO4J_DB}" 2>/dev/null)
+    "${NEO4J_URI}/" 2>/dev/null)
 
 if [[ "$HTTP_STATUS" -ge 400 ]] || [[ -z "$HTTP_STATUS" ]]; then
     echo -e "${RED}[ERROR] Neo4j no responde en ${NEO4J_URI} (HTTP ${HTTP_STATUS})${NC}"
@@ -91,7 +87,7 @@ fi
 echo -e "${GREEN}   Neo4j disponible.${NC}"
 echo ""
 
-# ── Función Cypher con parámetros ─────────────────────────────
+# ── Funcion Cypher ────────────────────────────────────────────
 run_cypher() {
     local statement="$1"
     local parameters="${2:-{}}"
@@ -124,84 +120,89 @@ echo -e "${CYAN}   Procesando entidades...${NC}"
 ENT_NEW=0
 ENT_UPD=0
 ENT_SKIP=0
-OBS_ADDED=0
+PROPS_ADDED=0
 
 ENTITY_TOTAL=$(jq '.entities | length' "$INPUT_FILE")
 
 for ((i=0; i<ENTITY_TOTAL; i++)); do
-    NAME=$(jq -r ".entities[$i].name"        "$INPUT_FILE")
-    ENTITY_TYPE=$(jq -r ".entities[$i].entityType // \"\"" "$INPUT_FILE")
-    INCOMING_OBS=$(jq -c ".entities[$i].observations // []" "$INPUT_FILE")
+    NAME=$(jq -r ".entities[$i].name" "$INPUT_FILE")
 
-    # Traer observaciones actuales del master
+    # Soporta formato nuevo (properties) y formato legacy (campos directos)
+    if jq -e ".entities[$i].properties" "$INPUT_FILE" &>/dev/null; then
+        INCOMING_PROPS=$(jq -c ".entities[$i].properties" "$INPUT_FILE")
+    else
+        INCOMING_PROPS=$(jq -c "{name: .entities[$i].name, entityType: .entities[$i].entityType}" "$INPUT_FILE")
+    fi
+
+    # Traer propiedades actuales del master
     MASTER_RESP=$(run_cypher \
-        "MATCH (e:Entity {name: \$name}) RETURN coalesce(e.observations, []) AS observations" \
+        "MATCH (e:Entity {name: \$name}) RETURN properties(e) AS props" \
         "{\"name\": $(jq -n --arg v "$NAME" '$v')}")
 
     if echo "$MASTER_RESP" | grep -q "NEO4J_ERROR"; then
-        echo -e "${RED}   [FAIL] $NAME: error al consultar master${NC}"
+        echo -e "${RED}   [FAIL] $NAME: error consultando master${NC}"
         continue
     fi
 
-    MASTER_OBS=$(echo "$MASTER_RESP" | jq -r '.results[0].data[0].row[0] // [] | @json' 2>/dev/null || echo "[]")
-    ENTITY_EXISTS=$(echo "$MASTER_RESP" | jq -r '.results[0].data | length')
-
-    # Calcular observaciones que faltan: incoming - master
-    NEW_OBS=$(jq -n \
-        --argjson incoming "$INCOMING_OBS" \
-        --argjson master   "$MASTER_OBS" \
-        '[$incoming[] | select(. as $o | $master | index($o) == null)]')
-    NEW_OBS_COUNT=$(echo "$NEW_OBS" | jq 'length')
+    ENTITY_EXISTS=$(echo "$MASTER_RESP" | jq '.results[0].data | length')
+    MASTER_PROPS=$(echo "$MASTER_RESP" | jq -c '.results[0].data[0].row[0] // {}')
 
     if [[ "$ENTITY_EXISTS" -eq 0 ]]; then
-        # Entidad nueva: crear con todas sus observaciones
+        # Entidad nueva: crear con todas sus propiedades
         PARAMS=$(jq -n \
-            --arg name       "$NAME" \
-            --arg entityType "$ENTITY_TYPE" \
-            --argjson observations "$INCOMING_OBS" \
-            '{"name":$name,"entityType":$entityType,"observations":$observations}')
+            --arg name "$NAME" \
+            --argjson props "$INCOMING_PROPS" \
+            '{"name":$name,"props":$props}')
         RESULT=$(run_cypher \
-            "MERGE (e:Entity {name: \$name}) SET e.entityType = \$entityType, e.observations = \$observations" \
+            "MERGE (e:Entity {name: \$name}) SET e += \$props" \
             "$PARAMS")
         if echo "$RESULT" | grep -q "NEO4J_ERROR"; then
             echo -e "${RED}   [FAIL] $NAME${NC}"
         else
+            PROP_COUNT=$(echo "$INCOMING_PROPS" | jq 'keys | length')
             echo -e "${GREEN}   [NEW]  $NAME${NC}"
             ((ENT_NEW++))
-            OBS_ADDED=$((OBS_ADDED + $(echo "$INCOMING_OBS" | jq 'length')))
-        fi
-
-    elif [[ "$NEW_OBS_COUNT" -gt 0 ]]; then
-        # Entidad existente con observaciones nuevas
-        PARAMS=$(jq -n \
-            --arg name  "$NAME" \
-            --argjson newObs "$NEW_OBS" \
-            '{"name":$name,"newObs":$newObs}')
-        CYPHER="MATCH (e:Entity {name: \$name})
-WITH e, \$newObs AS newObs
-UNWIND newObs AS obs
-WITH e, obs
-WHERE NOT obs IN coalesce(e.observations, [])
-SET e.observations = coalesce(e.observations, []) + [obs]"
-        RESULT=$(run_cypher "$CYPHER" "$PARAMS")
-        if echo "$RESULT" | grep -q "NEO4J_ERROR"; then
-            echo -e "${RED}   [FAIL] $NAME${NC}"
-        else
-            echo -e "${YELLOW}   [UPD]  $NAME (+${NEW_OBS_COUNT} obs)${NC}"
-            ((ENT_UPD++))
-            OBS_ADDED=$((OBS_ADDED + NEW_OBS_COUNT))
+            PROPS_ADDED=$((PROPS_ADDED + PROP_COUNT))
         fi
 
     else
-        ((ENT_SKIP++))
+        # Entidad existente: calcular propiedades ausentes en master
+        NEW_PROPS=$(jq -n \
+            --argjson incoming "$INCOMING_PROPS" \
+            --argjson master   "$MASTER_PROPS" \
+            'to_entries as $inc |
+             ($master | keys) as $masterKeys |
+             [ $inc[] | select(.key as $k | $masterKeys | index($k) == null) ] |
+             from_entries')
+        NEW_COUNT=$(echo "$NEW_PROPS" | jq 'keys | length')
+
+        if [[ "$NEW_COUNT" -gt 0 ]]; then
+            PARAMS=$(jq -n \
+                --arg name "$NAME" \
+                --argjson newProps "$NEW_PROPS" \
+                '{"name":$name,"newProps":$newProps}')
+            RESULT=$(run_cypher \
+                "MATCH (e:Entity {name: \$name}) SET e += \$newProps" \
+                "$PARAMS")
+            if echo "$RESULT" | grep -q "NEO4J_ERROR"; then
+                echo -e "${RED}   [FAIL] $NAME${NC}"
+            else
+                NEW_KEYS=$(echo "$NEW_PROPS" | jq -r 'keys | join(", ")')
+                echo -e "${YELLOW}   [UPD]  $NAME (+${NEW_COUNT} props: ${NEW_KEYS})${NC}"
+                ((ENT_UPD++))
+                PROPS_ADDED=$((PROPS_ADDED + NEW_COUNT))
+            fi
+        else
+            ((ENT_SKIP++))
+        fi
     fi
 done
 
 echo ""
-echo -e "${GREEN}   Entidades nuevas        : $ENT_NEW${NC}"
-echo -e "${YELLOW}   Entidades actualizadas  : $ENT_UPD${NC}"
-echo    "   Entidades sin cambios   : $ENT_SKIP"
-echo -e "${GREEN}   Observaciones agregadas : $OBS_ADDED${NC}"
+echo -e "${GREEN}   Entidades nuevas       : $ENT_NEW${NC}"
+echo -e "${YELLOW}   Entidades actualizadas : $ENT_UPD${NC}"
+echo    "   Entidades sin cambios  : $ENT_SKIP"
+echo -e "${GREEN}   Propiedades agregadas  : $PROPS_ADDED${NC}"
 echo ""
 
 # ── Merge de relaciones ───────────────────────────────────────
@@ -212,18 +213,13 @@ REL_SKIP=0
 CONN_TOTAL=$(jq '.connections | length' "$INPUT_FILE")
 
 for ((i=0; i<CONN_TOTAL; i++)); do
-    FROM=$(jq -r ".connections[$i].from"         "$INPUT_FILE")
+    FROM=$(jq -r ".connections[$i].from"          "$INPUT_FILE")
     REL_TYPE=$(jq -r ".connections[$i].relationType" "$INPUT_FILE")
-    TO=$(jq -r ".connections[$i].to"             "$INPUT_FILE")
-
-    # Sanitizar relationType: solo A-Z, 0-9, _
+    TO=$(jq -r ".connections[$i].to"              "$INPUT_FILE")
     REL_SAFE=$(echo "$REL_TYPE" | tr -cd 'A-Z0-9_')
 
-    # Verificar si ya existe
-    PARAMS=$(jq -n \
-        --arg from "$FROM" \
-        --arg to   "$TO" \
-        '{"from":$from,"to":$to}')
+    PARAMS=$(jq -n --arg from "$FROM" --arg to "$TO" '{"from":$from,"to":$to}')
+
     CHECK_RESP=$(run_cypher \
         "MATCH (a:Entity {name: \$from})-[r:${REL_SAFE}]->(b:Entity {name: \$to}) RETURN count(r) AS cnt" \
         "$PARAMS")
@@ -252,9 +248,9 @@ echo ""
 # ── Resumen ───────────────────────────────────────────────────
 echo -e "${CYAN}======================================================${NC}"
 echo -e "${GREEN}   Import completado.${NC}"
-echo    "   Entidades: $ENT_NEW nuevas, $ENT_UPD actualizadas, $ENT_SKIP sin cambios"
-echo    "   Relaciones: $REL_NEW nuevas, $REL_SKIP sin cambios"
-echo    "   Observaciones agregadas: $OBS_ADDED"
+echo    "   Entidades  : $ENT_NEW nuevas, $ENT_UPD actualizadas, $ENT_SKIP sin cambios"
+echo    "   Relaciones : $REL_NEW nuevas, $REL_SKIP sin cambios"
+echo    "   Propiedades agregadas: $PROPS_ADDED"
 echo -e "${CYAN}======================================================${NC}"
 echo ""
 exit 0

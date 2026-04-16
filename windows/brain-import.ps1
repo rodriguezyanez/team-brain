@@ -4,12 +4,11 @@
 # Uso:
 #   .\brain-import.ps1 -InputFile "teambrain-export-dev01-20260416.json"
 #
-# Estrategia de merge:
-#   - Entidades: MERGE por name. Agrega solo las observaciones
-#     que no existan ya en el master. No sobreescribe nada.
-#   - Relaciones: MERGE por (from, relationType, to).
-#     Solo crea las que no existan.
-#   - entityType: se preserva el del master si ya existe.
+# Estrategia de merge (nunca sobreescribe, solo agrega):
+#   - Entidad nueva     -> se crea con todas sus propiedades
+#   - Entidad existente -> se agregan solo las propiedades (keys)
+#                         que no existan en el master
+#   - Relaciones        -> MERGE por (from, relationType, to)
 # =============================================================
 
 param(
@@ -29,8 +28,7 @@ $AuthHeader = "Basic " + [Convert]::ToBase64String($AuthBytes)
 
 function Test-Neo4j {
     try {
-        $resp = Invoke-WebRequest -Uri "$Neo4jUri/db/$Neo4jDb" `
-            -Headers @{ Authorization = $AuthHeader } `
+        $resp = Invoke-WebRequest -Uri "$Neo4jUri/" `
             -TimeoutSec 5 -ErrorAction Stop
         return $resp.StatusCode -lt 400
     } catch {
@@ -59,17 +57,27 @@ function Invoke-Cypher {
     return $resp
 }
 
-# Trae las observaciones actuales de una entidad en el master
-function Get-MasterObservations {
+# Retorna las propiedades actuales de una entidad en el master,
+# o $null si la entidad no existe.
+function Get-MasterProperties {
     param([string]$EntityName)
     $resp = Invoke-Cypher `
-        -Statement "MATCH (e:Entity {name: `$name}) RETURN coalesce(e.observations, []) AS observations" `
+        -Statement "MATCH (e:Entity {name: `$name}) RETURN properties(e) AS props" `
         -Parameters @{ name = $EntityName }
 
-    if ($resp.results[0].data.Count -eq 0) { return @() }
-    $raw = $resp.results[0].data[0].row[0]
-    if ($null -eq $raw) { return @() }
-    return @($raw)
+    if ($resp.results[0].data.Count -eq 0) { return $null }
+    return $resp.results[0].data[0].row[0]
+}
+
+# Convierte PSCustomObject a Hashtable
+function ConvertTo-FlatHashtable {
+    param($obj)
+    if ($null -eq $obj) { return @{} }
+    $ht = @{}
+    foreach ($prop in $obj.PSObject.Properties) {
+        $ht[$prop.Name] = $prop.Value
+    }
+    return $ht
 }
 
 # ── Main ─────────────────────────────────────────────────────
@@ -78,14 +86,14 @@ Write-Host ""
 Write-Host "Team Brain -- Importacion y merge de grafo" -ForegroundColor Cyan
 Write-Host ""
 
-# Validar archivo
+# ── Validaciones ─────────────────────────────────────────────
+
 if (-not (Test-Path $InputFile)) {
     Write-Host "[ERROR] Archivo no encontrado: $InputFile" -ForegroundColor Red
     Write-Host ""
     exit 1
 }
 
-# Cargar JSON
 try {
     $data = Get-Content $InputFile -Encoding UTF8 -Raw | ConvertFrom-Json
 } catch {
@@ -101,7 +109,6 @@ Write-Host "   Entidades  : $($meta.entityCount)"
 Write-Host "   Relaciones : $($meta.connectionCount)"
 Write-Host ""
 
-# Verificar Neo4j
 Write-Host "   Verificando conexion con Neo4j..."
 if (-not (Test-Neo4j)) {
     Write-Host "[ERROR] Neo4j no responde en $Neo4jUri" -ForegroundColor Red
@@ -115,51 +122,57 @@ Write-Host ""
 # ── Merge de entidades ────────────────────────────────────────
 
 Write-Host "   Procesando entidades..." -ForegroundColor Cyan
-$entNew  = 0
-$entUpd  = 0
-$entSkip = 0
-$obsAdded = 0
+$entNew     = 0
+$entUpd     = 0
+$entSkip    = 0
+$propsAdded = 0
 
 foreach ($entity in $data.entities) {
     try {
-        $masterObs = Get-MasterObservations -EntityName $entity.name
-        $incomingObs = if ($entity.observations) { @($entity.observations) } else { @() }
+        $masterRaw   = Get-MasterProperties -EntityName $entity.name
+        $masterProps = ConvertTo-FlatHashtable $masterRaw
 
-        # Calcular observaciones que faltan en el master
-        $newObs = $incomingObs | Where-Object { $_ -notin $masterObs }
+        # Soporta formato nuevo (properties) y formato legacy (campos directos)
+        if ($entity.properties) {
+            $incomingProps = ConvertTo-FlatHashtable $entity.properties
+        } else {
+            $incomingProps = @{ name = $entity.name; entityType = $entity.entityType }
+        }
 
-        if ($masterObs.Count -eq 0) {
-            # Entidad nueva: crear con todas sus observaciones
+        if ($null -eq $masterRaw) {
+            # Entidad nueva: crear con todas sus propiedades
             Invoke-Cypher `
-                -Statement "MERGE (e:Entity {name: `$name}) SET e.entityType = `$entityType, e.observations = `$observations" `
+                -Statement "MERGE (e:Entity {name: `$name}) SET e += `$props" `
                 -Parameters @{
-                    name         = $entity.name
-                    entityType   = if ($entity.entityType) { $entity.entityType } else { "" }
-                    observations = $incomingObs
+                    name  = $entity.name
+                    props = $incomingProps
                 } | Out-Null
             $entNew++
-            $obsAdded += $incomingObs.Count
+            $propsAdded += $incomingProps.Count
             Write-Host "   [NEW]  $($entity.name)" -ForegroundColor Green
-        } elseif ($newObs.Count -gt 0) {
-            # Entidad existente con observaciones nuevas: agregar solo las que faltan
-            Invoke-Cypher `
-                -Statement @"
-MATCH (e:Entity {name: `$name})
-WITH e, `$newObs AS newObs
-UNWIND newObs AS obs
-WITH e, obs
-WHERE NOT obs IN coalesce(e.observations, [])
-SET e.observations = coalesce(e.observations, []) + [obs]
-"@ `
-                -Parameters @{
-                    name   = $entity.name
-                    newObs = @($newObs)
-                } | Out-Null
-            $entUpd++
-            $obsAdded += $newObs.Count
-            Write-Host "   [UPD]  $($entity.name) (+$($newObs.Count) obs)" -ForegroundColor Yellow
+
         } else {
-            $entSkip++
+            # Entidad existente: agregar solo las propiedades ausentes en master
+            $newProps = @{}
+            foreach ($key in $incomingProps.Keys) {
+                if (-not $masterProps.ContainsKey($key)) {
+                    $newProps[$key] = $incomingProps[$key]
+                }
+            }
+
+            if ($newProps.Count -gt 0) {
+                Invoke-Cypher `
+                    -Statement "MATCH (e:Entity {name: `$name}) SET e += `$newProps" `
+                    -Parameters @{
+                        name     = $entity.name
+                        newProps = $newProps
+                    } | Out-Null
+                $entUpd++
+                $propsAdded += $newProps.Count
+                Write-Host "   [UPD]  $($entity.name) (+$($newProps.Count) props: $($newProps.Keys -join ', '))" -ForegroundColor Yellow
+            } else {
+                $entSkip++
+            }
         }
     } catch {
         Write-Host "   [FAIL] $($entity.name): $_" -ForegroundColor Red
@@ -167,10 +180,10 @@ SET e.observations = coalesce(e.observations, []) + [obs]
 }
 
 Write-Host ""
-Write-Host "   Entidades nuevas    : $entNew" -ForegroundColor Green
-Write-Host "   Entidades actualizadas: $entUpd" -ForegroundColor Yellow
-Write-Host "   Entidades sin cambios : $entSkip"
-Write-Host "   Observaciones agregadas: $obsAdded" -ForegroundColor Green
+Write-Host "   Entidades nuevas       : $entNew"     -ForegroundColor Green
+Write-Host "   Entidades actualizadas : $entUpd"     -ForegroundColor Yellow
+Write-Host "   Entidades sin cambios  : $entSkip"
+Write-Host "   Propiedades agregadas  : $propsAdded" -ForegroundColor Green
 Write-Host ""
 
 # ── Merge de relaciones ───────────────────────────────────────
@@ -181,7 +194,6 @@ $relSkip = 0
 
 foreach ($conn in $data.connections) {
     try {
-        # Sanitizar relationType: solo A-Z, 0-9, _
         $relType = $conn.relationType -replace '[^A-Z0-9_]', '_'
 
         $checkResp = Invoke-Cypher `
@@ -205,16 +217,16 @@ foreach ($conn in $data.connections) {
 }
 
 Write-Host ""
-Write-Host "   Relaciones nuevas       : $relNew" -ForegroundColor Green
-Write-Host "   Relaciones ya existentes: $relSkip"
+Write-Host "   Relaciones nuevas        : $relNew"  -ForegroundColor Green
+Write-Host "   Relaciones ya existentes : $relSkip"
 Write-Host ""
 
 # ── Resumen ───────────────────────────────────────────────────
 
 Write-Host "======================================================" -ForegroundColor Cyan
 Write-Host "   Import completado." -ForegroundColor Green
-Write-Host "   Entidades: $entNew nuevas, $entUpd actualizadas, $entSkip sin cambios"
-Write-Host "   Relaciones: $relNew nuevas, $relSkip sin cambios"
-Write-Host "   Observaciones agregadas: $obsAdded"
+Write-Host "   Entidades  : $entNew nuevas, $entUpd actualizadas, $entSkip sin cambios"
+Write-Host "   Relaciones : $relNew nuevas, $relSkip sin cambios"
+Write-Host "   Propiedades agregadas: $propsAdded"
 Write-Host "======================================================" -ForegroundColor Cyan
 Write-Host ""

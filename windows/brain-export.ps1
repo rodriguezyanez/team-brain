@@ -4,9 +4,13 @@
 # Uso:
 #   .\brain-export.ps1 [-OutputFile "export.json"]
 #
-# Genera un archivo JSON con todas las entidades y relaciones
-# del grafo local. El archivo puede ser compartido con otro dev
-# para consolidar informacion con brain-import.ps1.
+# Exporta todas las entidades con sus propiedades completas
+# y todas las relaciones del grafo local.
+# Compartir el archivo con el master y ejecutar brain-import.ps1.
+#
+# Formato del export:
+#   entities[].properties -> todas las propiedades del nodo
+#   connections[]         -> relaciones (from, relationType, to)
 # =============================================================
 
 param(
@@ -25,8 +29,7 @@ $AuthHeader = "Basic " + [Convert]::ToBase64String($AuthBytes)
 
 function Test-Neo4j {
     try {
-        $resp = Invoke-WebRequest -Uri "$Neo4jUri/db/$Neo4jDb" `
-            -Headers @{ Authorization = $AuthHeader } `
+        $resp = Invoke-WebRequest -Uri "$Neo4jUri/" `
             -TimeoutSec 5 -ErrorAction Stop
         return $resp.StatusCode -lt 400
     } catch {
@@ -52,12 +55,23 @@ function Invoke-Cypher {
     return $resp
 }
 
+# Convierte PSCustomObject a Hashtable para serializar correctamente a JSON
+function ConvertTo-FlatHashtable {
+    param($obj)
+    if ($null -eq $obj) { return @{} }
+    $ht = @{}
+    foreach ($prop in $obj.PSObject.Properties) {
+        $ht[$prop.Name] = $prop.Value
+    }
+    return $ht
+}
+
 # ── Resolucion del archivo de salida ─────────────────────────
 
 if ($OutputFile -eq "") {
-    $timestamp  = Get-Date -Format "yyyyMMdd-HHmmss"
+    $timestamp   = Get-Date -Format "yyyyMMdd-HHmmss"
     $machineName = $env:COMPUTERNAME.ToLower()
-    $OutputFile = "teambrain-export-${machineName}-${timestamp}.json"
+    $OutputFile  = "teambrain-export-${machineName}-${timestamp}.json"
 }
 
 # ── Main ─────────────────────────────────────────────────────
@@ -76,21 +90,20 @@ if (-not (Test-Neo4j)) {
 Write-Host "   Neo4j disponible." -ForegroundColor Green
 Write-Host ""
 
-# ── Exportar entidades ────────────────────────────────────────
+# ── Exportar entidades (todas las propiedades del nodo) ───────
 
 Write-Host "   Exportando entidades..."
-$entitiesResp = Invoke-Cypher -Statement "MATCH (e:Entity) RETURN e.name AS name, e.entityType AS entityType, e.observations AS observations ORDER BY e.name"
+
+# properties(e) retorna TODAS las propiedades del nodo, no solo campos fijos
+$entitiesResp = Invoke-Cypher -Statement "MATCH (e:Entity) RETURN properties(e) AS props ORDER BY e.name"
 
 $entities = @()
 foreach ($row in $entitiesResp.results[0].data) {
-    $cols = $entitiesResp.results[0].columns
-    $record = @{}
-    for ($i = 0; $i -lt $cols.Count; $i++) { $record[$cols[$i]] = $row.row[$i] }
-
+    $props = ConvertTo-FlatHashtable $row.row[0]
     $entities += @{
-        name        = $record["name"]
-        entityType  = if ($record["entityType"]) { $record["entityType"] } else { "" }
-        observations = if ($record["observations"]) { @($record["observations"]) } else { @() }
+        name       = $props["name"]
+        entityType = if ($props["entityType"]) { $props["entityType"] } else { "" }
+        properties = $props
     }
 }
 Write-Host "   Entidades encontradas: $($entities.Count)" -ForegroundColor Green
@@ -102,7 +115,7 @@ $connectionsResp = Invoke-Cypher -Statement "MATCH (a:Entity)-[r]->(b:Entity) RE
 
 $connections = @()
 foreach ($row in $connectionsResp.results[0].data) {
-    $cols = $connectionsResp.results[0].columns
+    $cols   = $connectionsResp.results[0].columns
     $record = @{}
     for ($i = 0; $i -lt $cols.Count; $i++) { $record[$cols[$i]] = $row.row[$i] }
 
@@ -119,21 +132,22 @@ Write-Host ""
 
 $export = @{
     meta = @{
-        exportedAt          = (Get-Date -Format "o")
-        exportedBy          = $env:COMPUTERNAME
-        exportedByUser      = $env:USERNAME
-        neo4jUri            = $Neo4jUri
-        teamBrainVersion    = "3.0"
-        entityCount         = $entities.Count
-        connectionCount     = $connections.Count
+        exportedAt       = (Get-Date -Format "o")
+        exportedBy       = $env:COMPUTERNAME
+        exportedByUser   = $env:USERNAME
+        neo4jUri         = $Neo4jUri
+        teamBrainVersion = "3.0"
+        entityCount      = $entities.Count
+        connectionCount  = $connections.Count
     }
     entities    = $entities
     connections = $connections
 }
 
-$json = $export | ConvertTo-Json -Depth 20
+$json       = $export | ConvertTo-Json -Depth 20
 $encWithBOM = New-Object System.Text.UTF8Encoding $true
-[System.IO.File]::WriteAllText((Resolve-Path ".").Path + "\" + $OutputFile, $json, $encWithBOM)
+$outputPath = (Resolve-Path ".").Path + "\" + $OutputFile
+[System.IO.File]::WriteAllText($outputPath, $json, $encWithBOM)
 
 Write-Host "   [OK] Export guardado en: $OutputFile" -ForegroundColor Green
 Write-Host ""
