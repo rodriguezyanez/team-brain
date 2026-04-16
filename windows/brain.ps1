@@ -1,4 +1,4 @@
-# =============================================================
+﻿# =============================================================
 # brain.ps1 — Comandos rapidos para Team Brain en Windows
 #
 # Uso:
@@ -19,6 +19,7 @@ param(
     [Parameter(Position=0)]
     [ValidateSet("up","down","restart","status","logs","browser","mcp","update","sync","")]
     [string]$Action = ""
+)
 
 if ($Action -eq "") {
     Write-Host ""

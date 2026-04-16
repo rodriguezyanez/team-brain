@@ -1,4 +1,4 @@
-# =============================================================
+﻿# =============================================================
 # export-obsidian.ps1 — Exporta Neo4j → Obsidian vault
 # Genera un archivo .md por nodo con [[wikilinks]] y propiedades.
 #

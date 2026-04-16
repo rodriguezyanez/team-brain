@@ -1,4 +1,4 @@
-# =============================================================
+﻿# =============================================================
 # install-context7.ps1 — Registra Context7 MCP en Claude Code
 # Context7 provee documentacion en tiempo real de las librerias
 # del stack: Spring Boot 3.5.11, Kafka, Resilience4j, WebClient

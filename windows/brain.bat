@@ -11,6 +11,8 @@ REM   brain.bat browser  -> abrir Neo4j Browser en Chrome
 REM   brain.bat mcp      -> registrar MCP team-brain y Context7 en Claude Code
 REM   brain.bat update   -> sincronizacion incremental de Neo4j (preserva memoria)
 REM   brain.bat sync     -> sincronizar memorias pendientes locales con Neo4j
+REM   brain.bat export [archivo.json] -> exportar grafo completo a JSON
+REM   brain.bat import <archivo.json> -> mergear export de otro dev en este Neo4j
 REM =============================================================
 
 setlocal
@@ -27,6 +29,8 @@ if /i "%ACTION%"=="browser" goto DO_BROWSER
 if /i "%ACTION%"=="mcp"     goto DO_MCP
 if /i "%ACTION%"=="update"  goto DO_UPDATE
 if /i "%ACTION%"=="sync"    goto DO_SYNC
+if /i "%ACTION%"=="export"  goto DO_EXPORT
+if /i "%ACTION%"=="import"  goto DO_IMPORT
 goto SHOW_HELP
 
 :DO_UP
@@ -123,19 +127,40 @@ if exist "%~dp0brain-sync.bat" (
 )
 goto END
 
+:DO_EXPORT
+echo.
+echo Exportando grafo de Neo4j a JSON...
+echo.
+powershell.exe -ExecutionPolicy Bypass -File "%~dp0brain-export.ps1" -OutputFile "%~2"
+goto END
+
+:DO_IMPORT
+echo.
+if "%~2"=="" (
+    echo [ERROR] Debes indicar el archivo a importar.
+    echo         Uso: brain.bat import ^<archivo.json^>
+    goto END
+)
+echo Importando y mergeando grafo desde "%~2"...
+echo.
+powershell.exe -ExecutionPolicy Bypass -File "%~dp0brain-import.ps1" -InputFile "%~2"
+goto END
+
 :SHOW_HELP
 echo.
 echo Team Brain -- Comandos disponibles:
 echo.
-echo   brain.bat up       Levantar Neo4j
-echo   brain.bat down     Detener Neo4j ^(datos persisten^)
-echo   brain.bat restart  Reiniciar Neo4j
-echo   brain.bat status   Ver estado del contenedor
-echo   brain.bat logs     Ver logs en vivo
-echo   brain.bat browser  Abrir Neo4j Browser
-echo   brain.bat mcp      Registrar MCPs ^(team-brain + Context7^) en Claude Code
-echo   brain.bat update   Sincronizar arquitectura en Neo4j ^(preserva memoria^)
-echo   brain.bat sync     Sincronizar memorias pendientes locales con Neo4j
+echo   brain.bat up                  Levantar Neo4j
+echo   brain.bat down                Detener Neo4j ^(datos persisten^)
+echo   brain.bat restart             Reiniciar Neo4j
+echo   brain.bat status              Ver estado del contenedor
+echo   brain.bat logs                Ver logs en vivo
+echo   brain.bat browser             Abrir Neo4j Browser
+echo   brain.bat mcp                 Registrar MCPs ^(team-brain + Context7^) en Claude Code
+echo   brain.bat update              Sincronizar arquitectura en Neo4j ^(preserva memoria^)
+echo   brain.bat sync                Sincronizar memorias pendientes locales con Neo4j
+echo   brain.bat export [file.json]  Exportar grafo completo a JSON
+echo   brain.bat import ^<file.json^>  Mergear export de otro dev en este Neo4j
 echo.
 
 :END

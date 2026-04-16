@@ -43,7 +43,9 @@ REM =============================================================
 REM PASO 0b: Backup de configuracion del usuario
 REM (se ejecuta una sola vez; si ya existe backup, se omite)
 REM =============================================================
+echo =============================================================
 echo -- PASO 0b: Backup de configuracion del usuario ------------
+echo =============================================================
 echo.
 
 set "BACKUP_DIR=%USERPROFILE%\.claude\team-brain-backup"
@@ -93,7 +95,9 @@ echo.
 REM =============================================================
 REM PASO 1: Verificar prerequisitos
 REM =============================================================
+echo =============================================================
 echo -- PASO 1: Verificando prerequisitos -----------------------
+echo =============================================================
 echo.
 
 set ERRORS=0
@@ -172,7 +176,11 @@ echo.
 REM =============================================================
 REM PASO 2: Levantar Neo4j
 REM =============================================================
+echo =============================================================
+echo =============================================================
 echo -- PASO 2: Levantando Neo4j --------------------------------
+echo =============================================================
+echo =============================================================
 echo.
 
 docker compose up -d
@@ -187,7 +195,9 @@ echo.
 REM =============================================================
 REM PASO 3: Esperar que Neo4j este listo y ejecutar init-brain
 REM =============================================================
+echo =============================================================
 echo -- PASO 3: Inicializando base de datos ---------------------
+echo =============================================================
 echo.
 
 call windows\init-brain.bat
@@ -200,7 +210,9 @@ echo.
 REM =============================================================
 REM PASO 4: Cargar arquitectura de referencia KLAP BYSF
 REM =============================================================
+echo =============================================================
 echo -- PASO 4: Cargando arquitectura KLAP BYSF -----------------
+echo =============================================================
 echo.
 
 if exist windows\enrich-brain.bat (
@@ -219,7 +231,9 @@ REM =============================================================
 REM PASO 5: Registrar MCPs (team-brain, context7, sequential-thinking)
 REM Escribe directo al .claude.json para evitar quoting issues del CLI
 REM =============================================================
+echo =============================================================
 echo -- PASO 5: Registrando MCPs en Claude Code -----------------
+echo =============================================================
 echo.
 
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$cf='%USERPROFILE%\.claude.json';$pass='!NEO4J_PASS!';$cfg=@{};if(Test-Path $cf){try{$cfg=Get-Content $cf -Raw|ConvertFrom-Json -AsHashtable}catch{}};if(-not $cfg.ContainsKey('mcpServers')){$cfg['mcpServers']=@{}};$ch=$false;if(-not $cfg['mcpServers'].ContainsKey('team-brain')){$cfg['mcpServers']['team-brain']=@{command='npx';args=@('-y','@knowall-ai/mcp-neo4j-agent-memory');env=@{NEO4J_URI='bolt://localhost:7687';NEO4J_USERNAME='neo4j';NEO4J_PASSWORD=$pass;NEO4J_DATABASE='neo4j'}};$ch=$true;Write-Host '  [OK] team-brain registrado.'}else{Write-Host '  [INFO] team-brain ya registrado. Saltando.'};if(-not $cfg['mcpServers'].ContainsKey('context7')){$cfg['mcpServers']['context7']=@{command='npx';args=@('-y','@upstash/context7-mcp')};$ch=$true;Write-Host '  [OK] context7 registrado.'}else{Write-Host '  [INFO] context7 ya registrado. Saltando.'};if(-not $cfg['mcpServers'].ContainsKey('sequential-thinking')){$cfg['mcpServers']['sequential-thinking']=@{command='npx';args=@('-y','@modelcontextprotocol/server-sequential-thinking')};$ch=$true;Write-Host '  [OK] sequential-thinking registrado.'}else{Write-Host '  [INFO] sequential-thinking ya registrado. Saltando.'};if($ch){$cfg|ConvertTo-Json -Depth 10|Set-Content $cf -Encoding UTF8}"
@@ -231,7 +245,9 @@ REM PASO 5d: Instalar plugins de Claude Code
 REM (superpowers, context-mode, context7-plugin)
 REM Se configuran via settings.json — no via mcp add-json
 REM =============================================================
+echo =============================================================
 echo -- PASO 5d: Instalando plugins Claude Code -----------------
+echo =============================================================
 echo.
 
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
@@ -244,7 +260,9 @@ echo.
 REM =============================================================
 REM PASO 6: Instalar skill files locales en Claude Code
 REM =============================================================
+echo =============================================================
 echo -- PASO 6: Instalando skills locales -----------------------
+echo =============================================================
 echo.
 
 if exist windows\install-skills.bat (
@@ -260,7 +278,9 @@ echo.
 REM =============================================================
 REM PASO 7: Instalar CLAUDE.md en el perfil del usuario
 REM =============================================================
+echo =============================================================
 echo -- PASO 7: Instalando CLAUDE.md ----------------------------
+echo =============================================================
 echo.
 
 if exist CLAUDE.md (
@@ -288,7 +308,9 @@ echo.
 REM =============================================================
 REM PASO 8: Guardian Angel hook pre-commit (opcional)
 REM =============================================================
+echo =============================================================
 echo -- PASO 8: Guardian Angel hook pre-commit (opcional) -------
+echo =============================================================
 echo.
 echo   Para instalar el hook en tu proyecto:
 echo     windows\install-hooks.bat C:\ruta\a\tu\proyecto
