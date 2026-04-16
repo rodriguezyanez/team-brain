@@ -1,4 +1,4 @@
-# =============================================================
+﻿# =============================================================
 # brain-update.ps1 — Sincronizacion incremental de Neo4j
 # Actualiza nodos del Standard KLAP BYSF sin borrar memoria
 # Ejecutar cuando cambie ARQUITECTURA_REFERENCIA.md

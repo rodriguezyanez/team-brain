@@ -92,7 +92,7 @@ El desinstalador:
 
 | Archivo | SO | Descripción |
 |---------|----|-------------|
-| `brain.bat` | Windows CMD | Operaciones diarias: `up`, `down`, `restart`, `status`, `logs`, `browser`, `mcp`, `update` |
+| `brain.bat` | Windows CMD | Operaciones diarias: `up`, `down`, `restart`, `status`, `logs`, `browser`, `mcp`, `update`, `sync`, `export`, `import` |
 | `brain.ps1` | Windows PowerShell | Ídem con colores y mejor manejo de errores |
 
 ### Instaladores y setup
@@ -115,6 +115,15 @@ El desinstalador:
 | `brain-update.bat` | Windows CMD | Actualiza los nodos del Standard en Neo4j usando `MERGE`. **No borra** la memoria acumulada del equipo (Decision, Fix, Pattern, Developer, Service, etc.) |
 | `brain-update.ps1` | Windows PowerShell | Ídem |
 | `brain-update.sh` | Linux / macOS | Ídem |
+
+### Consolidación de grafos entre devs
+
+| Archivo | SO | Descripción |
+|---------|----|-------------|
+| `brain-export.ps1` | Windows PowerShell | Exporta el grafo completo (entidades + relaciones) a un archivo JSON. Invocado vía `brain.bat export`. |
+| `brain-import.ps1` | Windows PowerShell | Importa y mergea un JSON exportado por otro dev. Agrega solo lo que falta — nunca sobreescribe. Invocado vía `brain.bat import <archivo>`. |
+| `brain-export.sh` | Linux / macOS | Ídem. Invocado directamente: `./brain-export.sh [archivo.json]`. Requiere `curl` y `jq`. |
+| `brain-import.sh` | Linux / macOS | Ídem. Invocado directamente: `./brain-import.sh <archivo.json>`. Requiere `curl` y `jq`. |
 
 ### MCPs adicionales
 
@@ -366,11 +375,13 @@ Claude debería responder consultando Neo4j y luego preguntar en qué proyecto v
 ## Uso diario
 
 ```bat
-brain.bat up       ← levantar Neo4j al empezar el día
-brain.bat down     ← detener al terminar (datos persisten)
-brain.bat status   ← verificar si está corriendo
-brain.bat update   ← sincronizar arquitectura si cambió ARQUITECTURA_REFERENCIA.md
-brain.bat sync     ← sincronizar memorias pendientes locales con Neo4j
+brain.bat up                   ← levantar Neo4j al empezar el día
+brain.bat down                 ← detener al terminar (datos persisten)
+brain.bat status               ← verificar si está corriendo
+brain.bat update               ← sincronizar arquitectura si cambió ARQUITECTURA_REFERENCIA.md
+brain.bat sync                 ← sincronizar memorias pendientes locales con Neo4j
+brain.bat export [file.json]   ← exportar grafo completo a JSON (para consolidar con master)
+brain.bat import <file.json>   ← mergear export de otro dev en este Neo4j
 ```
 
 ---
@@ -443,6 +454,62 @@ Abrir en Obsidian: **Archivo → Abrir vault → seleccionar `vault/`**.
 
 ---
 
+### Consolidar grafos de varios devs en un master
+
+Cada dev trabaja con su Neo4j local. Para consolidar toda la información en un único master:
+
+**1. Cada dev exporta su grafo:**
+
+Windows:
+```bat
+brain.bat export
+:: genera: teambrain-export-<hostname>-<timestamp>.json
+```
+
+Linux / macOS:
+```bash
+./brain-export.sh
+# genera: teambrain-export-<hostname>-<timestamp>.json
+```
+
+El nombre del archivo incluye el hostname y timestamp automáticamente.
+Si querés nombrar el archivo manualmente:
+```bat
+brain.bat export mis-memorias.json     :: Windows
+./brain-export.sh mis-memorias.json    :: Linux/macOS
+```
+
+**2. El dev comparte el archivo** (Slack, email, carpeta compartida, etc.) con el responsable del master.
+
+**3. El responsable del master importa cada archivo:**
+
+Windows:
+```bat
+brain.bat import teambrain-export-dev01-20260416-143022.json
+```
+
+Linux / macOS:
+```bash
+./brain-import.sh teambrain-export-dev01-20260416-143022.json
+```
+
+El import reporta en detalle qué se agregó:
+```
+[NEW]  DecisionXxx              ← entidad nueva
+[UPD]  Standard KLAP BYSF (+2 obs)  ← observaciones nuevas agregadas
+[NEW]  DevA -[CONOCE]-> DevB   ← relacion nueva
+
+Entidades: 3 nuevas, 5 actualizadas, 47 sin cambios
+Relaciones: 2 nuevas, 18 sin cambios
+```
+
+**Reglas de merge:**
+- Entidad nueva → se crea completa
+- Entidad existente → solo se agregan observaciones que no estén en el master; `entityType` del master se preserva
+- Relaciones → MERGE por `(from, relationType, to)`, no duplica
+
+---
+
 ### Memoria local cuando Neo4j no está disponible
 
 Si Neo4j no está corriendo durante una sesión de trabajo, Claude guarda automáticamente las memorias en una cola local:
@@ -510,4 +577,4 @@ Consultar `ONBOARDING.md` para el recorrido completo del ecosistema.
 
 ---
 
-*Team Brain KLAP BYSF · GUIA-PRACTICA.md · 2026-04-12*
+*Team Brain KLAP BYSF · GUIA-PRACTICA.md · 2026-04-16*

@@ -1,4 +1,4 @@
-# =============================================================
+﻿# =============================================================
 # install-skills.ps1 — Instala skill files en Claude Code
 # Si PowerShell bloquea: Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
 # =============================================================

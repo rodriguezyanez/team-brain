@@ -38,8 +38,10 @@ team-brain/
 ├── setup.bat / setup.ps1    Instalador/desinstalador — setup completo en un comando
 │                            setup.bat --uninstall para desinstalar y restaurar config
 ├── brain.bat / brain.ps1    Operaciones diarias: up, down, restart, status,
-│                            logs, browser, mcp, update
+│                            logs, browser, mcp, update, sync, export, import
 ├── brain-update.bat/.ps1    Sincronización incremental de Neo4j (preserva memoria)
+├── brain-export.ps1         Exporta grafo completo a JSON (brain.bat export)
+├── brain-import.ps1         Mergea export de otro dev en Neo4j (brain.bat import)
 ├── init-brain.bat           Inicialización de Neo4j — ejecutar UNA vez
 ├── init-brain.ps1           Versión PowerShell — detecta Community vs Enterprise
 ├── enrich-brain.bat         Carga arquitectura de referencia KLAP BYSF
@@ -50,6 +52,8 @@ team-brain/
 ├── init-brain.sh            Inicialización — detecta Community vs Enterprise
 ├── enrich-brain.sh          Carga arquitectura de referencia KLAP BYSF
 ├── brain-update.sh          Sincronización incremental de Neo4j (preserva memoria)
+├── brain-export.sh          Exporta grafo completo a JSON
+├── brain-import.sh          Mergea export de otro dev en Neo4j (agrega solo lo que falta)
 ├── backup.sh                Backup y restore de volúmenes
 │
 │── Documentación ────────────────────────────────────────────────────────────
@@ -130,6 +134,8 @@ claude mcp add-json "team-brain" \
 | Estado | `brain.bat status` | `.\brain.ps1 status` | `docker compose ps` |
 | Logs | `brain.bat logs` | `.\brain.ps1 logs` | `docker compose logs -f neo4j` |
 | Browser | `brain.bat browser` | `.\brain.ps1 browser` | `open http://localhost:7474` |
+| Exportar grafo | `brain.bat export [file]` | — | `./brain-export.sh [file]` |
+| Importar/mergear grafo | `brain.bat import <file>` | — | `./brain-import.sh <file>` |
 
 ---
 

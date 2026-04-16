@@ -1,4 +1,4 @@
-# =============================================================
+﻿# =============================================================
 # init-brain.ps1 — Inicializa Team Brain en Neo4j
 # Uso: .\init-brain.ps1
 #      .\init-brain.ps1 -Host 192.168.1.50 -Password "mi-password"

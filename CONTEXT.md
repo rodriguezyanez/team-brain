@@ -56,6 +56,8 @@ team-brain/
 ├── install-skills.bat         Instala skill files en %USERPROFILE%\.claude\skills\
 ├── install-hooks.bat          Instala hook pre-commit Guardian Angel en un proyecto
 ├── brain-sync.bat             Sincroniza memorias locales pendientes con Neo4j
+├── brain-export.ps1           Exporta grafo completo a JSON (brain.bat export)
+├── brain-import.ps1           Mergea export de otro dev en Neo4j (brain.bat import)
 ├── backup.bat                 Backup y restore de volúmenes Docker
 ├── export-obsidian.bat        Exporta el grafo Neo4j a archivos Markdown para Obsidian
 │
@@ -68,6 +70,8 @@ team-brain/
 ├── install-skills.sh          Instala skill files en ~/.claude/skills/
 ├── install-hooks.sh           Instala hook pre-commit Guardian Angel en un proyecto
 ├── brain-sync.sh              Sincroniza memorias locales pendientes con Neo4j
+├── brain-export.sh            Exporta grafo completo a JSON (./brain-export.sh [file])
+├── brain-import.sh            Mergea export de otro dev en Neo4j (./brain-import.sh <file>)
 ├── backup.sh                  Backup y restore de volúmenes Docker
 │
 │── Skills locales (fallback cuando Neo4j no está disponible) ──────────
@@ -183,6 +187,10 @@ brain.bat update         :: sincronizar nodos Standard en Neo4j (preserva memori
 :: Memoria local pendiente
 brain.bat sync           :: sincronizar memorias locales con Neo4j
 
+:: Consolidación de grafos entre devs
+brain.bat export [file]  :: exportar grafo completo a JSON
+brain.bat import <file>  :: mergear export de otro dev (agrega solo lo que falta)
+
 :: Backup de volúmenes Docker
 backup.bat               :: crear backup
 backup.bat list          :: listar backups
@@ -234,5 +242,5 @@ brain.bat update
 
 ---
 
-*Team Brain KLAP BYSF · CONTEXT.md v1.0 · Generado el 2026-04-11*
+*Team Brain KLAP BYSF · CONTEXT.md v1.1 · Actualizado el 2026-04-16*
 *Construido en conversación con Claude Sonnet 4.6 (Anthropic)*
